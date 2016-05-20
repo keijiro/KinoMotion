@@ -1,4 +1,4 @@
-﻿//
+//
 // Kino/Obscurance - SSAO (screen-space ambient obscurance) effect for Unity
 //
 // Copyright (C) 2016 Keijiro Takahashi

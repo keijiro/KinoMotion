@@ -1,4 +1,4 @@
-﻿//
+//
 // Kino/Obscurance - SSAO (screen-space ambient obscurance) effect for Unity
 //
 // Copyright (C) 2016 Keijiro Takahashi
@@ -238,6 +238,7 @@ namespace Kino
                 BuiltinRenderTextureType.GBuffer0,      // Albedo, Occ
                 BuiltinRenderTextureType.CameraTarget   // Ambient
             };
+            cb.SetGlobalTexture(rtMask, rtMask);
             cb.SetRenderTarget(mrt, BuiltinRenderTextureType.CameraTarget);
             cb.DrawMesh(_quadMesh, Matrix4x4.identity, m, 0, 8);
 
