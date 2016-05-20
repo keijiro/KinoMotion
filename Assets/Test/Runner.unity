@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.7553526, g: 0.6071594, b: 0.8458914, a: 1}
+  m_IndirectSpecularColor: {r: 0.75691277, g: 0.60694367, b: 0.8487793, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -199,14 +199,14 @@ Transform:
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 943708878}
-  m_LocalRotation: {x: 0.12278779, y: 0.6963643, z: -0.12278779, w: 0.6963643}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalRotation: {x: 0.06162845, y: 0.70441604, z: -0.06162845, w: 0.70441604}
+  m_LocalPosition: {x: 0, y: 1.2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1938101561}
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 20, y: 90, z: 0}
+  m_LocalEulerAnglesHint: {x: 10, y: 90, z: 0}
 --- !u!114 &943708880
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -225,7 +225,7 @@ MonoBehaviour:
   _positionAmplitude: 0.5
   _rotationAmplitude: 60
   _positionScale: {x: 1, y: 1, z: 1}
-  _rotationScale: {x: 0.1, y: 1, z: 0.5}
+  _rotationScale: {x: 0.06, y: 1, z: 0.5}
   _positionFractalLevel: 3
   _rotationFractalLevel: 1
 --- !u!1001 &1084242199
@@ -317,6 +317,10 @@ Prefab:
       propertyPath: m_Name
       value: Segment (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 1000012456873816, guid: 3e6e70a098814914e8aa1c7dddc639a9, type: 2}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 3e6e70a098814914e8aa1c7dddc639a9, type: 2}
   m_IsPrefabParent: 0
@@ -364,13 +368,13 @@ MonoBehaviour:
   _enablePositionNoise: 1
   _enableRotationNoise: 1
   _positionFrequency: 2
-  _rotationFrequency: 1.4
-  _positionAmplitude: 0.2
-  _rotationAmplitude: 1
+  _rotationFrequency: 3
+  _positionAmplitude: 0.1
+  _rotationAmplitude: 0.3
   _positionScale: {x: 0.5, y: 1, z: 0.5}
   _rotationScale: {x: 1, y: 1, z: 1}
-  _positionFractalLevel: 3
-  _rotationFractalLevel: 3
+  _positionFractalLevel: 2
+  _rotationFractalLevel: 2
 --- !u!1 &1603570667
 GameObject:
   m_ObjectHideFlags: 0
@@ -612,7 +616,7 @@ Prefab:
       objectReference: {fileID: 0}
     - target: {fileID: 400002, guid: 7e15121f5f042ed46aba81406403f2d2, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 0
+      value: -0.25
       objectReference: {fileID: 0}
     - target: {fileID: 400002, guid: 7e15121f5f042ed46aba81406403f2d2, type: 3}
       propertyPath: m_LocalRotation.x
@@ -668,7 +672,7 @@ Transform:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 1938101560}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: -8}
+  m_LocalPosition: {x: 0, y: 0, z: -5.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children:
   - {fileID: 1359243177}
@@ -690,7 +694,7 @@ MonoBehaviour:
   _enableRotationNoise: 0
   _positionFrequency: 0.1
   _rotationFrequency: 0.2
-  _positionAmplitude: 5
+  _positionAmplitude: 4.5
   _rotationAmplitude: 10
   _positionScale: {x: 0, y: 0, z: 1}
   _rotationScale: {x: 1, y: 1, z: 0}
