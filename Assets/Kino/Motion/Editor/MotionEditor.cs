@@ -30,26 +30,22 @@ namespace Kino
     [CustomEditor(typeof(Motion))]
     public class MotionEditor : Editor
     {
-        SerializedProperty _exposureTime;
+        SerializedProperty _exposureMode;
+        SerializedProperty _shutterSpeed;
+        SerializedProperty _exposureTimeScale;
         SerializedProperty _sampleCount;
         SerializedProperty _sampleCountValue;
         SerializedProperty _debugMode;
 
-        static int[] _exposureOptions = { 0, 1, 2, 3, 4 };
-
-        static GUIContent[] _exposureOptionLabels = {
-            new GUIContent("1 \u2044 15"),
-            new GUIContent("1 \u2044 30"),
-            new GUIContent("1 \u2044 60"),
-            new GUIContent("1 \u2044 125"),
-            new GUIContent("Use frame time")
-        };
-
+        static GUIContent _textScale = new GUIContent("Scale");
         static GUIContent _textValue = new GUIContent("Value");
+        static GUIContent _textTime = new GUIContent("Time = 1 /");
 
         void OnEnable()
         {
-            _exposureTime = serializedObject.FindProperty("_exposureTime");
+            _exposureMode = serializedObject.FindProperty("_exposureMode");
+            _shutterSpeed = serializedObject.FindProperty("_shutterSpeed");
+            _exposureTimeScale = serializedObject.FindProperty("_exposureTimeScale");
             _sampleCount = serializedObject.FindProperty("_sampleCount");
             _sampleCountValue = serializedObject.FindProperty("_sampleCountValue");
             _debugMode = serializedObject.FindProperty("_debugMode");
@@ -59,7 +55,24 @@ namespace Kino
         {
             serializedObject.Update();
 
-            EditorGUILayout.IntPopup(_exposureTime, _exposureOptionLabels, _exposureOptions);
+            EditorGUILayout.PropertyField(_exposureMode);
+
+            if (_exposureMode.hasMultipleDifferentValues ||
+                _exposureMode.enumValueIndex == (int)Motion.ExposureMode.Constant)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(_shutterSpeed, _textTime);
+                EditorGUI.indentLevel--;
+            }
+
+            if (_exposureMode.hasMultipleDifferentValues ||
+                _exposureMode.enumValueIndex == (int)Motion.ExposureMode.DeltaTime)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUILayout.PropertyField(_exposureTimeScale, _textScale);
+                EditorGUI.indentLevel--;
+            }
+
             EditorGUILayout.PropertyField(_sampleCount);
 
             if (_sampleCount.hasMultipleDifferentValues ||

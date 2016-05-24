@@ -29,60 +29,102 @@ namespace Kino
     [AddComponentMenu("Kino Image Effects/Motion")]
     public class Motion : MonoBehaviour
     {
-        #region Public properties
+        #region Public nested classes
 
-        /// Exposure time (shutter speed) of camera.
-        public ExposureTime exposureTime {
-            get { return _exposureTime; }
-            set { _exposureTime = value; }
+        /// How the exposure time (shutter speed) is determined.
+        public enum ExposureMode {
+            /// Constant time exposure (given by exposureTime).
+            Constant,
+            /// Frame rate dependent exposure. The exposure time is
+            /// set to be Time.deltaTime * exposureTimeScale.
+            DeltaTime
         }
 
-        public enum ExposureTime {
-            OnePerFifteen,
-            OnePerThirty,
-            OnePerSixty,
-            OnePerOneTwentyFive,
-            UseFrameTime
+        /// Amount of sample points.
+        public enum SampleCount {
+            /// Minimum amount of samples.
+            Low,
+            /// Medium amount of samples. Recommended for typical use.
+            Medium,
+            /// Large amount of samples.
+            High,
+            /// Use a given number of samples (sampleCountValue).
+            Variable
+        }
+
+        #endregion
+
+        #region Public properties
+
+        /// How the exposure time (shutter speed) is determined.
+        public ExposureMode exposureMode {
+            get { return _exposureMode; }
+            set { _exposureMode = value; }
         }
 
         [SerializeField]
-        [Tooltip("Exposure time (shutter speed) of camera.")]
-        ExposureTime _exposureTime = ExposureTime.OnePerThirty;
+        [Tooltip("How the exposure time (shutter speed) is determined.")]
+        ExposureMode _exposureMode = ExposureMode.DeltaTime;
 
-        /// Number of sample points, which affects quality and performance.
+        /// Denominator of the shutter speed.
+        /// This value is only used in the constant exposure mode.
+        public int shutterSpeed {
+            get { return _shutterSpeed; }
+            set { _shutterSpeed = value; }
+        }
+
+        [SerializeField]
+        [Tooltip("Denominator of the shutter speed.")]
+        int _shutterSpeed = 30;
+
+        /// Scale factor to the exposure time.
+        /// This value is only used in the delta time exposure mode.
+        public float exposureTimeScale {
+            get { return _exposureTimeScale; }
+            set { _exposureTimeScale = value; }
+        }
+
+        [SerializeField]
+        [Tooltip("Scale factor to the exposure time.")]
+        float _exposureTimeScale = 1;
+
+        /// Amount of sample points, which affects quality and performance.
         public SampleCount sampleCount {
             get { return _sampleCount; }
             set { _sampleCount = value; }
         }
 
-        public enum SampleCount { Low, Medium, High, Variable }
-
         [SerializeField]
-        [Tooltip("Number of sample points, which affects quality and performance.")]
+        [Tooltip("Amount of sample points, which affects quality and performance.")]
         SampleCount _sampleCount = SampleCount.Medium;
 
-        /// Determines the sample count when SampleCount.Variable is used.
-        /// In other cases, it returns the preset value of the current setting.
+        /// Determines the number of sample points when SampleCount.Variable
+        /// is given to sampleCount. It returns the preset value of the current
+        /// setting in other cases.
         public int sampleCountValue {
             get {
                 switch (_sampleCount) {
-                    case SampleCount.Low:    return 10;
-                    case SampleCount.Medium: return 20;
-                    case SampleCount.High:   return 30;
+                    case SampleCount.Low:    return 6;
+                    case SampleCount.Medium: return 12;
+                    case SampleCount.High:   return 24;
                 }
-                return Mathf.Clamp(_sampleCountValue, 1, 256);
+                return Mathf.Clamp(_sampleCountValue, 2, 128);
             }
             set { _sampleCountValue = value; }
         }
 
         [SerializeField]
-        int _sampleCountValue = 16;
+        int _sampleCountValue = 12;
 
-        /// Debug visualization mode.
+        #endregion
+
+        #region Debug settings
+
+        enum DebugMode { Off, Velocity, NeighborMax, Depth }
+
         [SerializeField]
+        [Tooltip("Debug visualization mode.")]
         DebugMode _debugMode;
-
-        public enum DebugMode { Off, Velocity, NeighborMax, Depth }
 
         #endregion
 
@@ -94,13 +136,12 @@ namespace Kino
         Material _prefilterMaterial;
         Material _reconstructionMaterial;
 
-        static float[] exposureTimeTable = { 15, 30, 60, 125, 1 };
-
         float VelocityScale {
             get {
-                if (_exposureTime == ExposureTime.UseFrameTime) return 1;
-                var time = exposureTimeTable[(int)_exposureTime];
-                return 1 / (time * Time.smoothDeltaTime);
+                if (_exposureMode == ExposureMode.Constant)
+                    return 1.0f / (_shutterSpeed * Time.smoothDeltaTime);
+                else // ExposureMode.DeltaTime
+                    return _exposureTimeScale;
             }
         }
 
@@ -138,7 +179,7 @@ namespace Kino
 
             _reconstructionMaterial.SetFloat("_MaxBlurRadius", 40);
             _reconstructionMaterial.SetFloat("_DepthFilterStrength", 5);
-            _reconstructionMaterial.SetInt("_LoopCount", sampleCountValue / 2);
+            _reconstructionMaterial.SetInt("_LoopCount", Mathf.Max(sampleCountValue / 2, 1));
 
             var vbuffer = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB2101010);
             var tile1 = RenderTexture.GetTemporary(tw / 10, th / 10, 0, RenderTextureFormat.RGHalf);
