@@ -192,7 +192,7 @@ namespace Kino
             tile2.filterMode = FilterMode.Point;
             tile3.filterMode = FilterMode.Point;
 
-            Graphics.Blit(source, vbuffer, _prefilterMaterial, 0);
+            Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
             Graphics.Blit(vbuffer, tile1, _prefilterMaterial, 1);
             Graphics.Blit(tile1, tile2, _prefilterMaterial, 2);
             Graphics.Blit(tile2, tile3, _prefilterMaterial, 4);

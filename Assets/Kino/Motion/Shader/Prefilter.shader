@@ -36,7 +36,10 @@ Shader "Hidden/Kino/Motion/Prefilter"
     float4 _MainTex_TexelSize;
 
     sampler2D_float _CameraDepthTexture;
+    float4 _CameraDepthTexture_TexelSize;
+
     sampler2D_half _CameraMotionVectorsTexture;
+    float4 _CameraMotionVectorsTexture_TexelSize;
 
     // Velocity scale factor used for adjusting exposure time
     float _VelocityScale;
@@ -60,7 +63,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
         v *= _VelocityScale;
 
         // Halve the velocity and convert to the one-unit-per-pixel scale.
-        v = v * 0.5 / _MainTex_TexelSize.xy;
+        v = v * 0.5 * _CameraMotionVectorsTexture_TexelSize.zw;
 
         // Clamp the vector with the maximum blur radius.
         float lv = length(v);

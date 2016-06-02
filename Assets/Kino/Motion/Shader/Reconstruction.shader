@@ -128,11 +128,31 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         return weight;
     }
 
-    // Reconstruction filter
-    half4 frag_reconstruction(v2f_img i) : SV_Target
+    struct v2f_multitex
     {
-        float2 p = i.uv * _ScreenParams.xy;
-        float2 p_uv = i.uv;
+        float4 pos : SV_POSITION;
+        float2 uv0 : TEXCOORD0;
+        float2 uv1 : TEXCOORD1;
+    };
+
+    v2f_multitex vert_multitex(appdata_full v)
+    {
+        v2f_multitex o;
+        o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+        o.uv0 = v.texcoord.xy;
+        o.uv1 = v.texcoord.xy;
+    #if UNITY_UV_STARTS_AT_TOP
+        if (_MainTex_TexelSize.y < 0.0)
+            o.uv1.y = 1.0 - v.texcoord.y;
+    #endif
+        return o;
+    }
+
+    // Reconstruction filter
+    half4 frag_reconstruction(v2f_multitex i) : SV_Target
+    {
+        float2 p = i.uv1 * _ScreenParams.xy;
+        float2 p_uv = i.uv1;
 
         // Velocity vector at p.
         float3 v_c_t = SampleVelocity(p_uv);
@@ -158,7 +178,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         // First itegration sample (center sample).
         float sampleCount = _LoopCount * 2.0f;
         float totalWeight = sampleCount / (l_v_c * 40);
-        float3 result = tex2D(_MainTex, p_uv) * totalWeight;
+        float3 result = tex2D(_MainTex, i.uv0) * totalWeight;
 
         // Start from t = -1 with small jitter.
         float t = -1.0 + GradientNoise(p_uv, 0) * sample_jitter / (sampleCount + sample_jitter);
@@ -172,20 +192,22 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         {
             // Odd-numbered sample: sample along v_c.
             {
-                float2 S_uv = (t * v_c + p) * _MainTex_TexelSize.xy;
-                float weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv, w_A1);
+                float2 S_uv0 = i.uv0 + t * v_c * _MainTex_TexelSize.xy;
+                float2 S_uv1 = i.uv1 + t * v_c * _VelocityTex_TexelSize.xy;
+                float weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A1);
 
-                result += tex2D(_MainTex, S_uv).rgb * weight;
+                result += tex2D(_MainTex, S_uv0).rgb * weight;
                 totalWeight += weight;
 
                 t += dt;
             }
             // Even-numbered sample: sample along v_max.
             {
-                float2 S_uv = (t * v_max + p) * _MainTex_TexelSize.xy;
-                float weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv, w_A2);
+                float2 S_uv0 = i.uv0 + t * v_max * _MainTex_TexelSize.xy;
+                float2 S_uv1 = i.uv1 + t * v_max * _VelocityTex_TexelSize.xy;
+                float weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A2);
 
-                result += tex2D(_MainTex, S_uv).rgb * weight;
+                result += tex2D(_MainTex, S_uv0).rgb * weight;
                 totalWeight += weight;
 
                 t += dt;
@@ -196,22 +218,22 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     }
 
     // Debug visualization shaders
-    half4 frag_velocity(v2f_img i) : SV_Target
+    half4 frag_velocity(v2f_multitex i) : SV_Target
     {
-        half2 v = tex2D(_VelocityTex, i.uv).xy;
+        half2 v = tex2D(_VelocityTex, i.uv1).xy;
         return half4(v, 0.5, 1);
     }
 
-    half4 frag_neighbormax(v2f_img i) : SV_Target
+    half4 frag_neighbormax(v2f_multitex i) : SV_Target
     {
-        half2 v = tex2D(_NeighborMaxTex, i.uv).xy;
+        half2 v = tex2D(_NeighborMaxTex, i.uv1).xy;
         v = (v / _MaxBlurRadius + 1) / 2;
         return half4(v, 0.5, 1);
     }
 
-    half4 frag_depth(v2f_img i) : SV_Target
+    half4 frag_depth(v2f_multitex i) : SV_Target
     {
-        half z = frac(tex2D(_VelocityTex, i.uv).z * 128);
+        half z = frac(tex2D(_VelocityTex, i.uv1).z * 128);
         return half4(z, z, z, 1);
     }
 
@@ -224,7 +246,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
             #pragma target 3.0
-            #pragma vertex vert_img
+            #pragma vertex vert_multitex
             #pragma fragment frag_reconstruction
             ENDCG
         }
@@ -232,7 +254,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #pragma vertex vert_img
+            #pragma vertex vert_multitex
             #pragma fragment frag_velocity
             ENDCG
         }
@@ -240,7 +262,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #pragma vertex vert_img
+            #pragma vertex vert_multitex
             #pragma fragment frag_neighbormax
             ENDCG
         }
@@ -248,7 +270,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #pragma vertex vert_img
+            #pragma vertex vert_multitex
             #pragma fragment frag_depth
             ENDCG
         }
