@@ -178,7 +178,6 @@ namespace Kino
             _prefilterMaterial.SetFloat("_MaxBlurRadius", 40);
 
             _reconstructionMaterial.SetFloat("_MaxBlurRadius", 40);
-            _reconstructionMaterial.SetFloat("_DepthFilterStrength", 5);
             _reconstructionMaterial.SetInt("_LoopCount", Mathf.Max(sampleCountValue / 2, 1));
 
             var vbuffer = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB2101010);

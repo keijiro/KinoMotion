@@ -49,7 +49,8 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     int _LoopCount;
 
     // Filter coefficients
-    static const float sample_jitter = 2;
+    static const float kDepthFilterCoeff = 15;
+    static const float kSampleJitter = 2;
 
     // Safer version of vector normalization function
     float2 SafeNorm(float2 v)
@@ -89,7 +90,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     // Depth comparison function
     float CompareDepth(float za, float zb)
     {
-        return saturate(1.0 - _DepthFilterStrength * (zb - za) / min(za, zb));
+        return saturate(1.0 - kDepthFilterCoeff * (zb - za) / min(za, zb));
     }
 
     // Lerp and normalization
@@ -181,8 +182,8 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         float3 result = tex2D(_MainTex, i.uv0) * totalWeight;
 
         // Start from t = -1 with small jitter.
-        float t = -1.0 + GradientNoise(p_uv, 0) * sample_jitter / (sampleCount + sample_jitter);
-        float dt = 2.0 / (sampleCount + sample_jitter);
+        float t = -1.0 + GradientNoise(p_uv, 0) * kSampleJitter / (sampleCount + kSampleJitter);
+        float dt = 2.0 / (sampleCount + kSampleJitter);
 
         // Precalc the w_A parameters.
         float w_A1 = dot(w_c, v_c_n);
