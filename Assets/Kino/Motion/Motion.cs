@@ -116,6 +116,17 @@ namespace Kino
         [SerializeField]
         int _sampleCountValue = 12;
 
+        /// Determines the maximum length of blur trail. The larger the value
+        /// is, the longer the trail is, but also the more noticeable artifacts
+        /// it gets.
+        public int maxBlurRadius {
+            get { return Mathf.Clamp(_maxBlurRadius, 8, 64); }
+            set { _maxBlurRadius = value; }
+        }
+
+        [SerializeField, Range(8, 64)]
+        int _maxBlurRadius = 40;
+
         #endregion
 
         #region Debug settings
@@ -145,19 +156,36 @@ namespace Kino
             }
         }
 
+        RenderTexture GetTemporaryRT(Texture source, int divider, RenderTextureFormat format)
+        {
+            var w = source.width / divider;
+            var h = source.height / divider;
+            var rt = RenderTexture.GetTemporary(w, h, 0, format);
+            rt.filterMode = FilterMode.Point;
+            return rt;
+        }
+
+        void ReleaseTemporaryRT(RenderTexture rt)
+        {
+            RenderTexture.ReleaseTemporary(rt);
+        }
+
         #endregion
 
         #region MonoBehaviour functions
 
         void OnEnable()
         {
-            _prefilterMaterial = new Material(Shader.Find("Hidden/Kino/Motion/Prefilter"));
+            var prefilterShader = Shader.Find("Hidden/Kino/Motion/Prefilter");
+            _prefilterMaterial = new Material(prefilterShader);
             _prefilterMaterial.hideFlags = HideFlags.DontSave;
 
-            _reconstructionMaterial = new Material(Shader.Find("Hidden/Kino/Motion/Reconstruction"));
+            var reconstructionShader = Shader.Find("Hidden/Kino/Motion/Reconstruction");
+            _reconstructionMaterial = new Material(reconstructionShader);
             _reconstructionMaterial.hideFlags = HideFlags.DontSave;
 
-            GetComponent<Camera>().depthTextureMode |= DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
+            GetComponent<Camera>().depthTextureMode |=
+                DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
         }
 
         void OnDisable()
@@ -171,39 +199,59 @@ namespace Kino
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
-            var tw = source.width;
-            var th = source.height;
+            // Texture format for storing packed velocity/depth.
+            const RenderTextureFormat packedRTFormat = RenderTextureFormat.ARGB2101010;
 
+            // Texture format for storing 2D vectors.
+            const RenderTextureFormat vectorRTFormat = RenderTextureFormat.RGHalf;
+
+            // Calcurate the size of tiles.
+            // It should be a multiple of 8 and larger than _maxBlurRadius.
+            var tileSize = ((_maxBlurRadius - 1) / 8 + 1) * 8;
+
+            // Velocity/depth packing
             _prefilterMaterial.SetFloat("_VelocityScale", VelocityScale);
-            _prefilterMaterial.SetFloat("_MaxBlurRadius", 40);
+            _prefilterMaterial.SetFloat("_MaxBlurRadius", _maxBlurRadius);
 
-            _reconstructionMaterial.SetFloat("_MaxBlurRadius", 40);
-            _reconstructionMaterial.SetInt("_LoopCount", Mathf.Max(sampleCountValue / 2, 1));
+            var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
+            Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
 
-            var vbuffer = RenderTexture.GetTemporary(tw, th, 0, RenderTextureFormat.ARGB2101010);
-            var tile1 = RenderTexture.GetTemporary(tw / 10, th / 10, 0, RenderTextureFormat.RGHalf);
-            var tile2 = RenderTexture.GetTemporary(tw / 40, th / 40, 0, RenderTextureFormat.RGHalf);
-            var tile3 = RenderTexture.GetTemporary(tw / 40, th / 40, 0, RenderTextureFormat.RGHalf);
+            // First TileMax filter (1/4 downsize)
+            var tile4 = GetTemporaryRT(source, 4, vectorRTFormat);
+            Graphics.Blit(vbuffer, tile4, _prefilterMaterial, 1);
+
+            // Second TileMax filter (1/2 downsize)
+            var tile8 = GetTemporaryRT(source, 8, vectorRTFormat);
+            Graphics.Blit(tile4, tile8, _prefilterMaterial, 2);
+            ReleaseTemporaryRT(tile4);
+
+            // Third TileMax filter (reduce to tileSize)
+            var tileMaxOffs = Vector2.one * (tileSize / 8.0f - 1) * -0.5f;
+            _prefilterMaterial.SetVector("_TileMaxOffs", tileMaxOffs);
+            _prefilterMaterial.SetInt("_TileMaxLoop", tileSize / 8);
+
+            var tile = GetTemporaryRT(source, tileSize, vectorRTFormat);
+            Graphics.Blit(tile8, tile, _prefilterMaterial, 3);
+            ReleaseTemporaryRT(tile8);
+
+            // NeighborMax filter
+            var neighborMax = GetTemporaryRT(source, tileSize, vectorRTFormat);
+            Graphics.Blit(tile, neighborMax, _prefilterMaterial, 4);
+            ReleaseTemporaryRT(tile);
+
+            // Reconstruction pass
+            var loopCount = Mathf.Max(sampleCountValue / 2, 1);
+            _reconstructionMaterial.SetInt("_LoopCount", loopCount);
+            _reconstructionMaterial.SetFloat("_MaxBlurRadius", _maxBlurRadius);
+            _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
+            _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
 
             source.filterMode = FilterMode.Point;
-            vbuffer.filterMode = FilterMode.Point;
-            tile1.filterMode = FilterMode.Point;
-            tile2.filterMode = FilterMode.Point;
-            tile3.filterMode = FilterMode.Point;
-
-            Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
-            Graphics.Blit(vbuffer, tile1, _prefilterMaterial, 1);
-            Graphics.Blit(tile1, tile2, _prefilterMaterial, 2);
-            Graphics.Blit(tile2, tile3, _prefilterMaterial, 4);
-
-            _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
-            _reconstructionMaterial.SetTexture("_NeighborMaxTex", tile3);
             Graphics.Blit(source, destination, _reconstructionMaterial, (int)_debugMode);
 
-            RenderTexture.ReleaseTemporary(vbuffer);
-            RenderTexture.ReleaseTemporary(tile1);
-            RenderTexture.ReleaseTemporary(tile2);
-            RenderTexture.ReleaseTemporary(tile3);
+            // Cleaning up
+            ReleaseTemporaryRT(vbuffer);
+            ReleaseTemporaryRT(neighborMax);
         }
 
         #endregion

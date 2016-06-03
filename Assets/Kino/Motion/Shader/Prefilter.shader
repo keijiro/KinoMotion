@@ -47,8 +47,12 @@ Shader "Hidden/Kino/Motion/Prefilter"
     // Maximum blur radius
     float _MaxBlurRadius;
 
+    // TileMax filter parameters
+    int _TileMaxLoop;
+    float2 _TileMaxOffs;
+
     // Largest magnitude vector function
-    half2 vmax(half2 v1, half2 v2)
+    half2 VMax(half2 v1, half2 v2)
     {
         return lerp(v1, v2, dot(v1, v1) < dot(v2, v2));
     }
@@ -78,72 +82,94 @@ Shader "Hidden/Kino/Motion/Prefilter"
     }
 
     // TileMax filters
-    half4 frag_tile_max_x10(v2f_img i) : SV_Target
+    half4 frag_tile_max_x4_first(v2f_img i) : SV_Target
     {
-        float2 uv = i.uv - _MainTex_TexelSize.xy * 4.5;
+        float4 d1 = _MainTex_TexelSize.xyxy * float4( 0.5, 0.5,  1.5, 1.5);
+        float4 d2 = _MainTex_TexelSize.xyxy * float4(-0.5, 0.5, -1.5, 1.5);
 
-        float2 du = float2(_MainTex_TexelSize.x, 0);
-        float2 dv = float2(0, _MainTex_TexelSize.y);
+        half2 v01 = tex2D(_MainTex, i.uv - d1.zw).rg; // -1.5, -1.5
+        half2 v02 = tex2D(_MainTex, i.uv - d1.xw).rg; // -0.5, -1.5
+        half2 v03 = tex2D(_MainTex, i.uv - d2.xw).rg; // +0.5, -1.5
+        half2 v04 = tex2D(_MainTex, i.uv - d2.zw).rg; // +1.5, -1.5
 
-        half2 v = 0;
+        half2 v05 = tex2D(_MainTex, i.uv - d1.zy).rg; // -1.5, -0.5
+        half2 v06 = tex2D(_MainTex, i.uv - d1.xy).rg; // -0.5, -0.5
+        half2 v07 = tex2D(_MainTex, i.uv - d2.xy).rg; // +0.5, -0.5
+        half2 v08 = tex2D(_MainTex, i.uv - d2.zy).rg; // +1.5, -0.5
 
-        for (int ix = 0; ix < 10; ix++)
-        {
-            float2 uv2 = uv;
-            for (int iy = 0; iy < 10; iy++)
-            {
-                v = vmax(v, (tex2D(_MainTex, uv2).rg * 2 - 1) * _MaxBlurRadius);
-                uv2 += du;
-            }
-            uv += dv;
-        }
+        half2 v09 = tex2D(_MainTex, i.uv + d2.zy).rg; // -1.5, +0.5
+        half2 v10 = tex2D(_MainTex, i.uv + d2.xy).rg; // -0.5, +0.5
+        half2 v11 = tex2D(_MainTex, i.uv + d1.xy).rg; // +0.5, +0.5
+        half2 v12 = tex2D(_MainTex, i.uv + d1.zy).rg; // +1.5, +0.5
 
-        return half4(v, 0, 0);
-    }
+        half2 v13 = tex2D(_MainTex, i.uv + d2.zw).rg; // -1.5, +1.5
+        half2 v14 = tex2D(_MainTex, i.uv + d2.xw).rg; // -0.5, +1.5
+        half2 v15 = tex2D(_MainTex, i.uv + d1.xw).rg; // +0.5, +1.5
+        half2 v16 = tex2D(_MainTex, i.uv + d1.zw).rg; // +1.5, +1.5
 
-    half4 frag_tile_max_x4(v2f_img i) : SV_Target
-    {
-        float2 tx = _MainTex_TexelSize.xy;
+        v01 = (v01 * 2 - 1) * _MaxBlurRadius;
+        v02 = (v02 * 2 - 1) * _MaxBlurRadius;
+        v03 = (v03 * 2 - 1) * _MaxBlurRadius;
+        v04 = (v04 * 2 - 1) * _MaxBlurRadius;
 
-        half2 v01 = tex2D(_MainTex, i.uv + tx * float2(-1.5, -1.5)).rg;
-        half2 v02 = tex2D(_MainTex, i.uv + tx * float2(-0.5, -1.5)).rg;
-        half2 v03 = tex2D(_MainTex, i.uv + tx * float2(+0.5, -1.5)).rg;
-        half2 v04 = tex2D(_MainTex, i.uv + tx * float2(+1.5, -1.5)).rg;
+        v05 = (v05 * 2 - 1) * _MaxBlurRadius;
+        v06 = (v06 * 2 - 1) * _MaxBlurRadius;
+        v07 = (v07 * 2 - 1) * _MaxBlurRadius;
+        v08 = (v08 * 2 - 1) * _MaxBlurRadius;
 
-        half2 v05 = tex2D(_MainTex, i.uv + tx * float2(-1.5, -0.5)).rg;
-        half2 v06 = tex2D(_MainTex, i.uv + tx * float2(-0.5, -0.5)).rg;
-        half2 v07 = tex2D(_MainTex, i.uv + tx * float2(+0.5, -0.5)).rg;
-        half2 v08 = tex2D(_MainTex, i.uv + tx * float2(+1.5, -0.5)).rg;
+        v09 = (v09 * 2 - 1) * _MaxBlurRadius;
+        v10 = (v10 * 2 - 1) * _MaxBlurRadius;
+        v11 = (v11 * 2 - 1) * _MaxBlurRadius;
+        v12 = (v12 * 2 - 1) * _MaxBlurRadius;
 
-        half2 v09 = tex2D(_MainTex, i.uv + tx * float2(-1.5, +0.5)).rg;
-        half2 v10 = tex2D(_MainTex, i.uv + tx * float2(-0.5, +0.5)).rg;
-        half2 v11 = tex2D(_MainTex, i.uv + tx * float2(+0.5, +0.5)).rg;
-        half2 v12 = tex2D(_MainTex, i.uv + tx * float2(+1.5, +0.5)).rg;
+        v13 = (v13 * 2 - 1) * _MaxBlurRadius;
+        v14 = (v14 * 2 - 1) * _MaxBlurRadius;
+        v15 = (v15 * 2 - 1) * _MaxBlurRadius;
+        v16 = (v16 * 2 - 1) * _MaxBlurRadius;
 
-        half2 v13 = tex2D(_MainTex, i.uv + tx * float2(-1.5, +1.5)).rg;
-        half2 v14 = tex2D(_MainTex, i.uv + tx * float2(-0.5, +1.5)).rg;
-        half2 v15 = tex2D(_MainTex, i.uv + tx * float2(+0.5, +1.5)).rg;
-        half2 v16 = tex2D(_MainTex, i.uv + tx * float2(+1.5, +1.5)).rg;
+        half2 va = VMax(VMax(VMax(v01, v02), v03), v04);
+        half2 vb = VMax(VMax(VMax(v05, v06), v07), v08);
+        half2 vc = VMax(VMax(VMax(v09, v10), v11), v12);
+        half2 vd = VMax(VMax(VMax(v13, v14), v15), v16);
 
-        half2 va = vmax(vmax(vmax(v01, v02), v03), v04);
-        half2 vb = vmax(vmax(vmax(v05, v06), v07), v08);
-        half2 vc = vmax(vmax(vmax(v09, v10), v11), v12);
-        half2 vd = vmax(vmax(vmax(v13, v14), v15), v16);
+        half2 vo = VMax(VMax(VMax(va, vb), vc), vd);
 
-        return half4(vmax(vmax(vmax(va, vb), vc), vd), 0, 0);
+        return half4(vo, 0, 0);
     }
 
     half4 frag_tile_max_x2(v2f_img i) : SV_Target
     {
-        float2 tx = _MainTex_TexelSize.xy;
+        float4 d = _MainTex_TexelSize.xyxy * float4(-0.5, -0.5, 0.5, 0.5);
 
-        half2 v1 = tex2D(_MainTex, i.uv + tx * float2(-0.5, -0.5)).rg;
-        half2 v2 = tex2D(_MainTex, i.uv + tx * float2(+0.5, -0.5)).rg;
+        half2 v1 = tex2D(_MainTex, i.uv + d.xy).rg;
+        half2 v2 = tex2D(_MainTex, i.uv + d.zy).rg;
+        half2 v3 = tex2D(_MainTex, i.uv + d.xw).rg;
+        half2 v4 = tex2D(_MainTex, i.uv + d.zw).rg;
 
-        half2 v3 = tex2D(_MainTex, i.uv + tx * float2(-0.5, +0.5)).rg;
-        half2 v4 = tex2D(_MainTex, i.uv + tx * float2(+0.5, +0.5)).rg;
+        half2 vo = VMax(VMax(VMax(v1, v2), v3), v4);
 
-        return half4(vmax(vmax(vmax(v1, v2), v3), v4), 0, 0);
+        return half4(vo, 0, 0);
+    }
+
+    half4 frag_tile_max_xn(v2f_img i) : SV_Target
+    {
+        float2 uv0 = i.uv + _MainTex_TexelSize.xy * _TileMaxOffs.xy;
+
+        float2 du = float2(_MainTex_TexelSize.x, 0);
+        float2 dv = float2(0, _MainTex_TexelSize.y);
+
+        half2 vo = 0;
+
+        UNITY_LOOP for (int ix = 0; ix < _TileMaxLoop; ix++)
+        {
+            UNITY_LOOP for (int iy = 0; iy < _TileMaxLoop; iy++)
+            {
+                float2 uv = uv0 + du * ix + dv * iy;
+                vo = VMax(vo, tex2D(_MainTex, uv).rg);
+            }
+        }
+
+        return half4(vo, 0, 0);
     }
 
     // NeighborMax filter
@@ -165,11 +191,11 @@ Shader "Hidden/Kino/Motion/Prefilter"
         half2 v8 = tex2D(_MainTex, i.uv + tx * float2( 0, +1)).rg;
         half2 v9 = tex2D(_MainTex, i.uv + tx * float2(+1, +1)).rg;
 
-        half2 va = vmax(v1, vmax(v2, v3));
-        half2 vb = vmax(v4, vmax(v5, v6));
-        half2 vc = vmax(v7, vmax(v8, v9));
+        half2 va = VMax(v1, VMax(v2, v3));
+        half2 vb = VMax(v4, VMax(v5, v6));
+        half2 vc = VMax(v7, VMax(v8, v9));
 
-        return half4(vmax(va, vmax(vb, vc)) / cw, 0, 0);
+        return half4(VMax(va, VMax(vb, vc)) / cw, 0, 0);
     }
 
     ENDCG
@@ -190,16 +216,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
             #pragma vertex vert_img
-            #pragma fragment frag_tile_max_x10
-            #pragma target 3.0
-            ENDCG
-        }
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #pragma vertex vert_img
-            #pragma fragment frag_tile_max_x4
+            #pragma fragment frag_tile_max_x4_first
             #pragma target 3.0
             ENDCG
         }
@@ -209,6 +226,15 @@ Shader "Hidden/Kino/Motion/Prefilter"
             CGPROGRAM
             #pragma vertex vert_img
             #pragma fragment frag_tile_max_x2
+            #pragma target 3.0
+            ENDCG
+        }
+        Pass
+        {
+            ZTest Always Cull Off ZWrite Off
+            CGPROGRAM
+            #pragma vertex vert_img
+            #pragma fragment frag_tile_max_xn
             #pragma target 3.0
             ENDCG
         }

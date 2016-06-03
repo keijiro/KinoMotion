@@ -35,6 +35,7 @@ namespace Kino
         SerializedProperty _exposureTimeScale;
         SerializedProperty _sampleCount;
         SerializedProperty _sampleCountValue;
+        SerializedProperty _maxBlurRadius;
         SerializedProperty _debugMode;
 
         static GUIContent _textScale = new GUIContent("Scale");
@@ -48,6 +49,7 @@ namespace Kino
             _exposureTimeScale = serializedObject.FindProperty("_exposureTimeScale");
             _sampleCount = serializedObject.FindProperty("_sampleCount");
             _sampleCountValue = serializedObject.FindProperty("_sampleCountValue");
+            _maxBlurRadius = serializedObject.FindProperty("_maxBlurRadius");
             _debugMode = serializedObject.FindProperty("_debugMode");
         }
 
@@ -83,6 +85,7 @@ namespace Kino
                 EditorGUI.indentLevel--;
             }
 
+            EditorGUILayout.PropertyField(_maxBlurRadius);
             EditorGUILayout.PropertyField(_debugMode);
 
             serializedObject.ApplyModifiedProperties();
