@@ -41,6 +41,7 @@ namespace Kino
         static GUIContent _textScale = new GUIContent("Scale");
         static GUIContent _textValue = new GUIContent("Value");
         static GUIContent _textTime = new GUIContent("Time = 1 /");
+        static GUIContent _textMaxBlur = new GUIContent("Max Blur Radius %");
 
         void OnEnable()
         {
@@ -85,7 +86,7 @@ namespace Kino
                 EditorGUI.indentLevel--;
             }
 
-            EditorGUILayout.PropertyField(_maxBlurRadius);
+            EditorGUILayout.PropertyField(_maxBlurRadius, _textMaxBlur);
             EditorGUILayout.PropertyField(_debugMode);
 
             serializedObject.ApplyModifiedProperties();

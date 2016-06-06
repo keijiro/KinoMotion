@@ -116,16 +116,18 @@ namespace Kino
         [SerializeField]
         int _sampleCountValue = 12;
 
-        /// Determines the maximum length of blur trail. The larger the value
-        /// is, the longer the trail is, but also the more noticeable artifacts
-        /// it gets.
-        public int maxBlurRadius {
-            get { return Mathf.Clamp(_maxBlurRadius, 8, 64); }
+        /// Determines the maximum length of blur trails, given as a percentage
+        /// of the screen height. The larger the value is, the longer the
+        /// trails are, but also the more noticeable artifacts it gets.
+        public float maxBlurRadius {
+            get { return Mathf.Clamp(_maxBlurRadius, 0.5f, 10.0f); }
             set { _maxBlurRadius = value; }
         }
 
-        [SerializeField, Range(8, 64)]
-        int _maxBlurRadius = 40;
+        [SerializeField, Range(0.5f, 10.0f)]
+        [Tooltip("Maximum length of blur trails. Specified as a percentage " +
+         "of the screen height. Large values may introduce artifacts.")]
+        float _maxBlurRadius = 1;
 
         #endregion
 
@@ -149,10 +151,10 @@ namespace Kino
 
         float VelocityScale {
             get {
-                if (_exposureMode == ExposureMode.Constant)
-                    return 1.0f / (_shutterSpeed * Time.smoothDeltaTime);
+                if (exposureMode == ExposureMode.Constant)
+                    return 1.0f / (shutterSpeed * Time.smoothDeltaTime);
                 else // ExposureMode.DeltaTime
-                    return _exposureTimeScale;
+                    return exposureTimeScale;
             }
         }
 
@@ -205,13 +207,16 @@ namespace Kino
             // Texture format for storing 2D vectors.
             const RenderTextureFormat vectorRTFormat = RenderTextureFormat.RGHalf;
 
+            // Calculate the maximum blur radius in pixels.
+            var maxBlur = (int)(maxBlurRadius * source.height / 100);
+
             // Calcurate the size of tiles.
-            // It should be a multiple of 8 and larger than _maxBlurRadius.
-            var tileSize = ((_maxBlurRadius - 1) / 8 + 1) * 8;
+            // It should be a multiple of 8 and larger than maxBlur.
+            var tileSize = ((maxBlur - 1) / 8 + 1) * 8;
 
             // Velocity/depth packing
             _prefilterMaterial.SetFloat("_VelocityScale", VelocityScale);
-            _prefilterMaterial.SetFloat("_MaxBlurRadius", _maxBlurRadius);
+            _prefilterMaterial.SetFloat("_MaxBlurRadius", maxBlur);
 
             var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
             Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
@@ -242,7 +247,7 @@ namespace Kino
             // Reconstruction pass
             var loopCount = Mathf.Max(sampleCountValue / 2, 1);
             _reconstructionMaterial.SetInt("_LoopCount", loopCount);
-            _reconstructionMaterial.SetFloat("_MaxBlurRadius", _maxBlurRadius);
+            _reconstructionMaterial.SetFloat("_MaxBlurRadius", maxBlur);
             _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
             _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
 
