@@ -103,9 +103,9 @@ namespace Kino
         public int sampleCountValue {
             get {
                 switch (_sampleCount) {
-                    case SampleCount.Low:    return 6;
-                    case SampleCount.Medium: return 12;
-                    case SampleCount.High:   return 24;
+                    case SampleCount.Low:    return 4;
+                    case SampleCount.Medium: return 10;
+                    case SampleCount.High:   return 20;
                 }
                 return Mathf.Clamp(_sampleCountValue, 2, 128);
             }

@@ -670,8 +670,9 @@ MonoBehaviour:
   _exposureMode: 0
   _shutterSpeed: 30
   _exposureTimeScale: 1
-  _sampleCount: 2
+  _sampleCount: 1
   _sampleCountValue: 12
+  _maxBlurRadius: 5
   _debugMode: 0
   _prefilterShader: {fileID: 4800000, guid: b727eaa2e4a5d4a48a84f0b17e61ad82, type: 3}
   _reconstructionShader: {fileID: 4800000, guid: 31985cbea77794aa2bc041a90b1974a2,

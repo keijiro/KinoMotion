@@ -41,23 +41,23 @@ Shader "Hidden/Kino/Motion/Prefilter"
     sampler2D_half _CameraMotionVectorsTexture;
     float4 _CameraMotionVectorsTexture_TexelSize;
 
-    // Velocity scale factor used for adjusting exposure time
+    // Velocity scale factor
     float _VelocityScale;
 
-    // Maximum blur radius
+    // Maximum blur radius (in pixels)
     float _MaxBlurRadius;
 
     // TileMax filter parameters
     int _TileMaxLoop;
     float2 _TileMaxOffs;
 
-    // Largest magnitude vector function
+    // Selects the largest vector of v1 and v2.
     half2 VMax(half2 v1, half2 v2)
     {
         return lerp(v1, v2, dot(v1, v1) < dot(v2, v2));
     }
 
-    // Velocity map setup
+    // Pass 0 - Velocity map setup
     half4 frag_velocity_map(v2f_img i) : SV_Target
     {
         // Sample the motion vector.
@@ -66,7 +66,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
         // Apply the exposure time.
         v *= _VelocityScale;
 
-        // Halve the velocity and convert to the one-unit-per-pixel scale.
+        // Halve the vector and convert it to the pixel space.
         v = v * 0.5 * _CameraMotionVectorsTexture_TexelSize.zw;
 
         // Clamp the vector with the maximum blur radius.
@@ -81,7 +81,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
         return half4((v / _MaxBlurRadius + 1) / 2, z01, 0);
     }
 
-    // TileMax filters
+    // Pass 1 - TileMax filter (4 pixels width with renormalizing)
     half4 frag_tile_max_x4_first(v2f_img i) : SV_Target
     {
         float4 d1 = _MainTex_TexelSize.xyxy * float4( 0.5, 0.5,  1.5, 1.5);
@@ -137,6 +137,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
         return half4(vo, 0, 0);
     }
 
+    // Pass 2 - TileMax filter (2 pixels width)
     half4 frag_tile_max_x2(v2f_img i) : SV_Target
     {
         float4 d = _MainTex_TexelSize.xyxy * float4(-0.5, -0.5, 0.5, 0.5);
@@ -151,6 +152,7 @@ Shader "Hidden/Kino/Motion/Prefilter"
         return half4(vo, 0, 0);
     }
 
+    // Pass 3 - TileMax filter (N pixels width)
     half4 frag_tile_max_xn(v2f_img i) : SV_Target
     {
         float2 uv0 = i.uv + _MainTex_TexelSize.xy * _TileMaxOffs.xy;
@@ -172,24 +174,24 @@ Shader "Hidden/Kino/Motion/Prefilter"
         return half4(vo, 0, 0);
     }
 
-    // NeighborMax filter
+    // Pass 4 - NeighborMax filter
     half4 frag_neighbor_max(v2f_img i) : SV_Target
     {
         static const half cw = 1.01f; // center weight tweak
 
-        float2 tx = _MainTex_TexelSize.xy;
+        float4 d = _MainTex_TexelSize.xyxy * float4(1, 1, -1, 0);
 
-        half2 v1 = tex2D(_MainTex, i.uv + tx * float2(-1, -1)).rg;
-        half2 v2 = tex2D(_MainTex, i.uv + tx * float2( 0, -1)).rg;
-        half2 v3 = tex2D(_MainTex, i.uv + tx * float2(+1, -1)).rg;
+        half2 v1 = tex2D(_MainTex, i.uv - d.xy).rg;
+        half2 v2 = tex2D(_MainTex, i.uv - d.wy).rg;
+        half2 v3 = tex2D(_MainTex, i.uv - d.zy).rg;
 
-        half2 v4 = tex2D(_MainTex, i.uv + tx * float2(-1,  0)).rg;
-        half2 v5 = tex2D(_MainTex, i.uv + tx * float2( 0,  0)).rg * cw;
-        half2 v6 = tex2D(_MainTex, i.uv + tx * float2(+1,  0)).rg;
+        half2 v4 = tex2D(_MainTex, i.uv - d.xw).rg;
+        half2 v5 = tex2D(_MainTex, i.uv       ).rg * cw;
+        half2 v6 = tex2D(_MainTex, i.uv + d.xw).rg;
 
-        half2 v7 = tex2D(_MainTex, i.uv + tx * float2(-1, +1)).rg;
-        half2 v8 = tex2D(_MainTex, i.uv + tx * float2( 0, +1)).rg;
-        half2 v9 = tex2D(_MainTex, i.uv + tx * float2(+1, +1)).rg;
+        half2 v7 = tex2D(_MainTex, i.uv + d.zy).rg;
+        half2 v8 = tex2D(_MainTex, i.uv + d.wy).rg;
+        half2 v9 = tex2D(_MainTex, i.uv + d.xy).rg;
 
         half2 va = VMax(v1, VMax(v2, v3));
         half2 vb = VMax(v4, VMax(v5, v6));

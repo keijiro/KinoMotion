@@ -43,26 +43,23 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     sampler2D _NeighborMaxTex;
     float4 _NeighborMaxTex_TexelSize;
 
-    // Filter variables
-    float _MaxBlurRadius;
-    float _DepthFilterStrength;
+    // Filter parameters/coefficients
     int _LoopCount;
+    float _MaxBlurRadius;
 
-    // Filter coefficients
     static const float kDepthFilterCoeff = 15;
-    static const float kSampleJitter = 2;
 
     // Safer version of vector normalization function
     float2 SafeNorm(float2 v)
     {
         float l = max(length(v), 1e-6);
-        return v / l * step(0.5, l);
+        return v / l * (l >= 0.5);
     }
 
     // Interleaved gradient function from Jimenez 2014 http://goo.gl/eomGso
-    float GradientNoise(float2 uv, float2 offs)
+    float GradientNoise(float2 uv)
     {
-        uv = floor(uv * _ScreenParams.xy) + offs;
+        uv = floor((uv + _Time.y) * _ScreenParams.xy);
         float f = dot(float2(0.06711056f, 0.00583715f), uv);
         return frac(52.9829189f * frac(f));
     }
@@ -71,7 +68,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     float2 JitterTile(float2 uv)
     {
         float rx, ry;
-        sincos(GradientNoise(uv, float2(3, 2)) * UNITY_PI * 2, ry, rx);
+        sincos(GradientNoise(uv + float2(2, 0)) * UNITY_PI * 2, ry, rx);
         return float2(rx, ry) * _NeighborMaxTex_TexelSize.xy / 4;
     }
 
@@ -102,14 +99,14 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     // Velocity sampling function
     float3 SampleVelocity(float2 uv)
     {
-        float3 v = tex2D(_VelocityTex, uv);
+        float3 v = tex2D(_VelocityTex, uv).xyz;
         return float3((v.xy * 2 - 1) * _MaxBlurRadius, v.z);
     }
 
     // Sample weighting function
     float SampleWeight(float2 d_n, float l_v_c, float z_p, float T, float2 S_uv, float w_A)
     {
-        float3 temp = tex2D(_VelocityTex, S_uv);
+        float3 temp = tex2Dlod(_VelocityTex, float4(S_uv, 0, 0));
 
         float2 v_S = (temp.xy * 2 - 1) * _MaxBlurRadius;
         float l_v_S = max(length(v_S), 0.5);
@@ -129,6 +126,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         return weight;
     }
 
+    // Vertex shader for multiple texture blitting
     struct v2f_multitex
     {
         float4 pos : SV_POSITION;
@@ -149,7 +147,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         return o;
     }
 
-    // Reconstruction filter
+    // Reconstruction fragment shader
     half4 frag_reconstruction(v2f_multitex i) : SV_Target
     {
         float2 p = i.uv1 * _ScreenParams.xy;
@@ -161,10 +159,13 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         float2 v_c_n = SafeNorm(v_c);
         float l_v_c = max(length(v_c), 0.5);
 
-        // Nightbor-max vector at p with small jitter.
+        // NeighborMax vector at p (with small).
         float2 v_max = tex2D(_NeighborMaxTex, p_uv + JitterTile(p_uv)).xy;
         float2 v_max_n = SafeNorm(v_max);
         float l_v_max = length(v_max);
+
+        // Escape early if the NeighborMax vector is too short.
+        if (l_v_max < 0.5) return tex2D(_MainTex, i.uv0);
 
         // Linearized depth at p.
         float z_p = v_c_t.z;
@@ -173,19 +174,21 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         float2 w_p = v_max_n.yx * float2(-1, 1);
         if (dot(w_p, v_c) < 0.0) w_p = -w_p;
 
-        // Alternative sampling direction.
+        // Secondary sampling direction.
         float2 w_c = RNMix(w_p, v_c_n, (l_v_c - 0.5) / 1.5);
 
-        // First itegration sample (center sample).
+        // The center sample.
         float sampleCount = _LoopCount * 2.0f;
         float totalWeight = sampleCount / (l_v_c * 40);
         float3 result = tex2D(_MainTex, i.uv0) * totalWeight;
 
-        // Start from t = -1 with small jitter.
-        float t = -1.0 + GradientNoise(p_uv, 0) * kSampleJitter / (sampleCount + kSampleJitter);
-        float dt = 2.0 / (sampleCount + kSampleJitter);
+        // Start from t=-1 + small jitter.
+        // The width of jitter is equivalent to 4 sample steps.
+        float sampleJitter = 4.0 * 2 / (sampleCount + 4);
+        float t = -1.0 + GradientNoise(p_uv) * sampleJitter;
+        float dt = (2.0 - sampleJitter) / sampleCount;
 
-        // Precalc the w_A parameters.
+        // Precalculate the w_A parameters.
         float w_A1 = dot(w_c, v_c_n);
         float w_A2 = dot(w_c, v_max_n);
 
@@ -197,7 +200,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
                 float2 S_uv1 = i.uv1 + t * v_c * _VelocityTex_TexelSize.xy;
                 float weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A1);
 
-                result += tex2D(_MainTex, S_uv0).rgb * weight;
+                result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
                 totalWeight += weight;
 
                 t += dt;
@@ -208,7 +211,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
                 float2 S_uv1 = i.uv1 + t * v_max * _VelocityTex_TexelSize.xy;
                 float weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A2);
 
-                result += tex2D(_MainTex, S_uv0).rgb * weight;
+                result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
                 totalWeight += weight;
 
                 t += dt;
