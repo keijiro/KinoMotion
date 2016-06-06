@@ -35,18 +35,18 @@ namespace Kino
         public enum ExposureMode {
             /// Constant time exposure (given by exposureTime).
             Constant,
-            /// Frame rate dependent exposure. The exposure time is
-            /// set to be Time.deltaTime * exposureTimeScale.
+            /// Frame rate dependent exposure. The exposure time is set to be
+            /// deltaTime * exposureTimeScale.
             DeltaTime
         }
 
         /// Amount of sample points.
         public enum SampleCount {
-            /// Minimum amount of samples.
+            /// The minimum amount of samples.
             Low,
-            /// Medium amount of samples. Recommended for typical use.
+            /// A medium amount of samples. Recommended for typical use.
             Medium,
-            /// Large amount of samples.
+            /// A large amount of samples.
             High,
             /// Use a given number of samples (sampleCountValue).
             Variable
@@ -66,7 +66,7 @@ namespace Kino
         [Tooltip("How the exposure time (shutter speed) is determined.")]
         ExposureMode _exposureMode = ExposureMode.DeltaTime;
 
-        /// Denominator of the shutter speed.
+        /// The denominator of the shutter speed.
         /// This value is only used in the constant exposure mode.
         public int shutterSpeed {
             get { return _shutterSpeed; }
@@ -74,10 +74,10 @@ namespace Kino
         }
 
         [SerializeField]
-        [Tooltip("Denominator of the shutter speed.")]
+        [Tooltip("The denominator of the shutter speed.")]
         int _shutterSpeed = 30;
 
-        /// Scale factor to the exposure time.
+        /// The scale factor to the exposure time.
         /// This value is only used in the delta time exposure mode.
         public float exposureTimeScale {
             get { return _exposureTimeScale; }
@@ -85,22 +85,21 @@ namespace Kino
         }
 
         [SerializeField]
-        [Tooltip("Scale factor to the exposure time.")]
+        [Tooltip("The scale factor to the exposure time.")]
         float _exposureTimeScale = 1;
 
-        /// Amount of sample points, which affects quality and performance.
+        /// The amount of sample points, which affects quality and performance.
         public SampleCount sampleCount {
             get { return _sampleCount; }
             set { _sampleCount = value; }
         }
 
         [SerializeField]
-        [Tooltip("Amount of sample points, which affects quality and performance.")]
+        [Tooltip("The amount of sample points, which affects quality and performance.")]
         SampleCount _sampleCount = SampleCount.Medium;
 
-        /// Determines the number of sample points when SampleCount.Variable
-        /// is given to sampleCount. It returns the preset value of the current
-        /// setting in other cases.
+        /// The number of sample points. This value is only used when
+        /// SampleCount.Variable is given to sampleCount.
         public int sampleCountValue {
             get {
                 switch (_sampleCount) {
@@ -116,18 +115,18 @@ namespace Kino
         [SerializeField]
         int _sampleCountValue = 12;
 
-        /// Determines the maximum length of blur trails, given as a percentage
-        /// of the screen height. The larger the value is, the longer the
-        /// trails are, but also the more noticeable artifacts it gets.
+        /// The maximum length of blur trails, given as a percentage of the
+        /// screen height. The larger the value is, the longer the trails are,
+        /// but also the more noticeable artifacts it gets.
         public float maxBlurRadius {
             get { return Mathf.Clamp(_maxBlurRadius, 0.5f, 10.0f); }
             set { _maxBlurRadius = value; }
         }
 
         [SerializeField, Range(0.5f, 10.0f)]
-        [Tooltip("Maximum length of blur trails. Specified as a percentage " +
+        [Tooltip("The maximum length of blur trails, specified as a percentage " +
          "of the screen height. Large values may introduce artifacts.")]
-        float _maxBlurRadius = 1;
+        float _maxBlurRadius = 3.5f;
 
         #endregion
 
@@ -136,7 +135,7 @@ namespace Kino
         enum DebugMode { Off, Velocity, NeighborMax, Depth }
 
         [SerializeField]
-        [Tooltip("Debug visualization mode.")]
+        [Tooltip("The debug visualization mode.")]
         DebugMode _debugMode;
 
         #endregion
@@ -208,29 +207,29 @@ namespace Kino
             const RenderTextureFormat vectorRTFormat = RenderTextureFormat.RGHalf;
 
             // Calculate the maximum blur radius in pixels.
-            var maxBlur = (int)(maxBlurRadius * source.height / 100);
+            var maxBlurPixels = (int)(maxBlurRadius * source.height / 100);
 
-            // Calcurate the size of tiles.
+            // Calculate the TileMax size.
             // It should be a multiple of 8 and larger than maxBlur.
-            var tileSize = ((maxBlur - 1) / 8 + 1) * 8;
+            var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
-            // Velocity/depth packing
+            // Pass 1 - Velocity/depth packing
             _prefilterMaterial.SetFloat("_VelocityScale", VelocityScale);
-            _prefilterMaterial.SetFloat("_MaxBlurRadius", maxBlur);
+            _prefilterMaterial.SetFloat("_MaxBlurRadius", maxBlurPixels);
 
             var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
             Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
 
-            // First TileMax filter (1/4 downsize)
+            // Pass 2 - First TileMax filter (1/4 downsize)
             var tile4 = GetTemporaryRT(source, 4, vectorRTFormat);
             Graphics.Blit(vbuffer, tile4, _prefilterMaterial, 1);
 
-            // Second TileMax filter (1/2 downsize)
+            // Pass 3 - Second TileMax filter (1/2 downsize)
             var tile8 = GetTemporaryRT(source, 8, vectorRTFormat);
             Graphics.Blit(tile4, tile8, _prefilterMaterial, 2);
             ReleaseTemporaryRT(tile4);
 
-            // Third TileMax filter (reduce to tileSize)
+            // Pass 4 - Third TileMax filter (reduce to tileSize)
             var tileMaxOffs = Vector2.one * (tileSize / 8.0f - 1) * -0.5f;
             _prefilterMaterial.SetVector("_TileMaxOffs", tileMaxOffs);
             _prefilterMaterial.SetInt("_TileMaxLoop", tileSize / 8);
@@ -239,15 +238,15 @@ namespace Kino
             Graphics.Blit(tile8, tile, _prefilterMaterial, 3);
             ReleaseTemporaryRT(tile8);
 
-            // NeighborMax filter
+            // Pass 5 - NeighborMax filter
             var neighborMax = GetTemporaryRT(source, tileSize, vectorRTFormat);
             Graphics.Blit(tile, neighborMax, _prefilterMaterial, 4);
             ReleaseTemporaryRT(tile);
 
-            // Reconstruction pass
+            // Pass 6 - Reconstruction pass
             var loopCount = Mathf.Max(sampleCountValue / 2, 1);
             _reconstructionMaterial.SetInt("_LoopCount", loopCount);
-            _reconstructionMaterial.SetFloat("_MaxBlurRadius", maxBlur);
+            _reconstructionMaterial.SetFloat("_MaxBlurRadius", maxBlurPixels);
             _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
             _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
 
