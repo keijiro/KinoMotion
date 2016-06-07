@@ -115,7 +115,7 @@ namespace Kino
         [SerializeField]
         int _sampleCountValue = 12;
 
-        /// The maximum length of blur trails, given as a percentage of the
+        /// The maximum length of blur trails, given as a percentage to the
         /// screen height. The larger the value is, the longer the trails are,
         /// but also the more noticeable artifacts it gets.
         public float maxBlurRadius {
@@ -125,7 +125,7 @@ namespace Kino
 
         [SerializeField, Range(0.5f, 10.0f)]
         [Tooltip("The maximum length of blur trails, specified as a percentage " +
-         "of the screen height. Large values may introduce artifacts.")]
+         "to the screen height. Large values may introduce artifacts.")]
         float _maxBlurRadius = 3.5f;
 
         #endregion
