@@ -250,7 +250,6 @@ namespace Kino
             _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
             _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
 
-            source.filterMode = FilterMode.Point;
             Graphics.Blit(source, destination, _reconstructionMaterial, (int)_debugMode);
 
             // Cleaning up
