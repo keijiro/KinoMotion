@@ -37,22 +37,22 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     sampler2D _MainTex;
     float4 _MainTex_TexelSize;
 
-    sampler2D _VelocityTex;
+    sampler2D_half _VelocityTex;
     float4 _VelocityTex_TexelSize;
 
-    sampler2D _NeighborMaxTex;
+    sampler2D_half _NeighborMaxTex;
     float4 _NeighborMaxTex_TexelSize;
 
     // Filter parameters/coefficients
     int _LoopCount;
-    float _MaxBlurRadius;
+    half _MaxBlurRadius;
 
     static const float kDepthFilterCoeff = 15;
 
     // Safer version of vector normalization function
-    float2 SafeNorm(float2 v)
+    half2 SafeNorm(half2 v)
     {
-        float l = max(length(v), 1e-6);
+        half l = max(length(v), 1e-6);
         return v / l * (l >= 0.5);
     }
 
@@ -73,52 +73,52 @@ Shader "Hidden/Kino/Motion/Reconstruction"
     }
 
     // Cone shaped interpolation
-    float Cone(float T, float l_V)
+    half Cone(half T, half l_V)
     {
         return saturate(1.0 - T / l_V);
     }
 
     // Cylinder shaped interpolation
-    float Cylinder(float T, float l_V)
+    half Cylinder(half T, half l_V)
     {
         return 1.0 - smoothstep(0.95 * l_V, 1.05 * l_V, T);
     }
 
     // Depth comparison function
-    float CompareDepth(float za, float zb)
+    half CompareDepth(half za, half zb)
     {
         return saturate(1.0 - kDepthFilterCoeff * (zb - za) / min(za, zb));
     }
 
     // Lerp and normalization
-    float2 RNMix(float2 a, float2 b, float p)
+    half2 RNMix(half2 a, half2 b, half p)
     {
         return SafeNorm(lerp(a, b, saturate(p)));
     }
 
     // Velocity sampling function
-    float3 SampleVelocity(float2 uv)
+    half3 SampleVelocity(float2 uv)
     {
-        float3 v = tex2D(_VelocityTex, uv).xyz;
-        return float3((v.xy * 2 - 1) * _MaxBlurRadius, v.z);
+        half3 v = tex2D(_VelocityTex, uv).xyz;
+        return half3((v.xy * 2 - 1) * _MaxBlurRadius, v.z);
     }
 
     // Sample weighting function
-    float SampleWeight(float2 d_n, float l_v_c, float z_p, float T, float2 S_uv, float w_A)
+    half SampleWeight(half2 d_n, half l_v_c, half z_p, half T, float2 S_uv, half w_A)
     {
-        float3 temp = tex2Dlod(_VelocityTex, float4(S_uv, 0, 0));
+        half3 temp = tex2Dlod(_VelocityTex, float4(S_uv, 0, 0));
 
-        float2 v_S = (temp.xy * 2 - 1) * _MaxBlurRadius;
-        float l_v_S = max(length(v_S), 0.5);
+        half2 v_S = (temp.xy * 2 - 1) * _MaxBlurRadius;
+        half l_v_S = max(length(v_S), 0.5);
 
-        float z_S = temp.z;
+        half z_S = temp.z;
 
-        float f = CompareDepth(z_p, z_S);
-        float b = CompareDepth(z_S, z_p);
+        half f = CompareDepth(z_p, z_S);
+        half b = CompareDepth(z_S, z_p);
 
-        float w_B = abs(dot(v_S / l_v_S, d_n));
+        half w_B = abs(dot(v_S / l_v_S, d_n));
 
-        float weight = 0.0;
+        half weight = 0.0;
         weight += f * Cone(T, l_v_S) * w_B;
         weight += b * Cone(T, l_v_c) * w_A;
         weight += Cylinder(T, min(l_v_S, l_v_c)) * max(w_A, w_B) * 2;
@@ -154,43 +154,43 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         float2 p_uv = i.uv1;
 
         // Velocity vector at p.
-        float3 v_c_t = SampleVelocity(p_uv);
-        float2 v_c = v_c_t.xy;
-        float2 v_c_n = SafeNorm(v_c);
-        float l_v_c = max(length(v_c), 0.5);
+        half3 v_c_t = SampleVelocity(p_uv);
+        half2 v_c = v_c_t.xy;
+        half2 v_c_n = SafeNorm(v_c);
+        half l_v_c = max(length(v_c), 0.5);
 
         // NeighborMax vector at p (with small).
-        float2 v_max = tex2D(_NeighborMaxTex, p_uv + JitterTile(p_uv)).xy;
-        float2 v_max_n = SafeNorm(v_max);
-        float l_v_max = length(v_max);
+        half2 v_max = tex2D(_NeighborMaxTex, p_uv + JitterTile(p_uv)).xy;
+        half2 v_max_n = SafeNorm(v_max);
+        half l_v_max = length(v_max);
 
         // Escape early if the NeighborMax vector is too short.
         if (l_v_max < 0.5) return tex2D(_MainTex, i.uv0);
 
         // Linearized depth at p.
-        float z_p = v_c_t.z;
+        half z_p = v_c_t.z;
 
         // A vector perpendicular to v_max.
-        float2 w_p = v_max_n.yx * float2(-1, 1);
+        half2 w_p = v_max_n.yx * float2(-1, 1);
         if (dot(w_p, v_c) < 0.0) w_p = -w_p;
 
         // Secondary sampling direction.
-        float2 w_c = RNMix(w_p, v_c_n, (l_v_c - 0.5) / 1.5);
+        half2 w_c = RNMix(w_p, v_c_n, (l_v_c - 0.5) / 1.5);
 
         // The center sample.
-        float sampleCount = _LoopCount * 2.0f;
-        float totalWeight = sampleCount / (l_v_c * 40);
-        float3 result = tex2D(_MainTex, i.uv0) * totalWeight;
+        half sampleCount = _LoopCount * 2.0f;
+        half totalWeight = sampleCount / (l_v_c * 40);
+        half3 result = tex2D(_MainTex, i.uv0) * totalWeight;
 
         // Start from t=-1 + small jitter.
         // The width of jitter is equivalent to 4 sample steps.
-        float sampleJitter = 4.0 * 2 / (sampleCount + 4);
-        float t = -1.0 + GradientNoise(p_uv) * sampleJitter;
-        float dt = (2.0 - sampleJitter) / sampleCount;
+        half sampleJitter = 4.0 * 2 / (sampleCount + 4);
+        half t = -1.0 + GradientNoise(p_uv) * sampleJitter;
+        half dt = (2.0 - sampleJitter) / sampleCount;
 
         // Precalculate the w_A parameters.
-        float w_A1 = dot(w_c, v_c_n);
-        float w_A2 = dot(w_c, v_max_n);
+        half w_A1 = dot(w_c, v_c_n);
+        half w_A2 = dot(w_c, v_max_n);
 
         UNITY_LOOP for (int c = 0; c < _LoopCount; c++)
         {
@@ -198,7 +198,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             {
                 float2 S_uv0 = i.uv0 + t * v_c * _MainTex_TexelSize.xy;
                 float2 S_uv1 = i.uv1 + t * v_c * _VelocityTex_TexelSize.xy;
-                float weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A1);
+                half weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A1);
 
                 result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
                 totalWeight += weight;
@@ -209,7 +209,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             {
                 float2 S_uv0 = i.uv0 + t * v_max * _MainTex_TexelSize.xy;
                 float2 S_uv1 = i.uv1 + t * v_max * _VelocityTex_TexelSize.xy;
-                float weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A2);
+                half weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A2);
 
                 result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
                 totalWeight += weight;
@@ -218,7 +218,7 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             }
         }
 
-        return float4(result / totalWeight, 1);
+        return half4(result / totalWeight, 1);
     }
 
     // Debug visualization shaders
