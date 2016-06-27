@@ -77,7 +77,7 @@ namespace Kino
         [Tooltip("The denominator of the shutter speed.")]
         int _shutterSpeed = 30;
 
-        /// The scale factor to the exposure time.
+        /// The scale factor of the exposure time.
         /// This value is only used in the delta time exposure mode.
         public float exposureTimeScale {
             get { return _exposureTimeScale; }
@@ -85,7 +85,7 @@ namespace Kino
         }
 
         [SerializeField]
-        [Tooltip("The scale factor to the exposure time.")]
+        [Tooltip("The scale factor of the exposure time.")]
         float _exposureTimeScale = 1;
 
         /// The amount of sample points, which affects quality and performance.
@@ -115,7 +115,7 @@ namespace Kino
         [SerializeField]
         int _sampleCountValue = 12;
 
-        /// The maximum length of blur trails, given as a percentage to the
+        /// The maximum length of blur trails, given as a percentage of the
         /// screen height. The larger the value is, the longer the trails are,
         /// but also the more noticeable artifacts it gets.
         public float maxBlurRadius {
@@ -125,7 +125,7 @@ namespace Kino
 
         [SerializeField, Range(0.5f, 10.0f)]
         [Tooltip("The maximum length of blur trails, specified as a percentage " +
-         "to the screen height. Large values may introduce artifacts.")]
+         "of the screen height. Large values may introduce artifacts.")]
         float _maxBlurRadius = 3.5f;
 
         #endregion
