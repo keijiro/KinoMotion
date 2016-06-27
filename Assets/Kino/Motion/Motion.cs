@@ -29,15 +29,14 @@ namespace Kino
     [AddComponentMenu("Kino Image Effects/Motion")]
     public class Motion : MonoBehaviour
     {
-        #region Public nested classes
+        #region Public enumerations
 
         /// How the exposure time (shutter speed) is determined.
-        public enum ExposureMode {
-            /// Constant time exposure (given by exposureTime).
-            Constant,
-            /// Frame rate dependent exposure. The exposure time is set to be
-            /// deltaTime * exposureTimeScale.
-            DeltaTime
+        public enum ExposureTimeMode {
+            /// Frame rate-dependent exposure mode.
+            FrameRateDependent,
+            /// Constant-time exposure mode.
+            Constant
         }
 
         /// Amount of sample points.
@@ -48,8 +47,8 @@ namespace Kino
             Medium,
             /// A large amount of samples.
             High,
-            /// Use a given number of samples (sampleCountValue).
-            Variable
+            /// Use a given number of samples (customSampleCount)
+            Custom
         }
 
         #endregion
@@ -57,17 +56,29 @@ namespace Kino
         #region Public properties
 
         /// How the exposure time (shutter speed) is determined.
-        public ExposureMode exposureMode {
-            get { return _exposureMode; }
-            set { _exposureMode = value; }
+        public ExposureTimeMode exposureTimeMode {
+            get { return _exposureTimeMode; }
+            set { _exposureTimeMode = value; }
         }
 
         [SerializeField]
         [Tooltip("How the exposure time (shutter speed) is determined.")]
-        ExposureMode _exposureMode = ExposureMode.DeltaTime;
+        ExposureTimeMode _exposureTimeMode = ExposureTimeMode.FrameRateDependent;
 
-        /// The denominator of the shutter speed.
-        /// This value is only used in the constant exposure mode.
+        /// The angle of rotary shutter. The larger the angle is, the longer
+        /// the exposure time is. This value is only used in frame rate-
+        /// dependent exposure mode.
+        public float shutterAngle {
+            get { return _shutterAngle; }
+            set { _shutterAngle = value; }
+        }
+
+        [SerializeField, Range(0, 360)]
+        [Tooltip("The angle of rotary shutter. Larger values give longer exposure.")]
+        float _shutterAngle = 270;
+
+        /// The denominator of the custom shutter speed.
+        /// This value is only used in constant-time exposure mode.
         public int shutterSpeed {
             get { return _shutterSpeed; }
             set { _shutterSpeed = value; }
@@ -75,18 +86,7 @@ namespace Kino
 
         [SerializeField]
         [Tooltip("The denominator of the shutter speed.")]
-        int _shutterSpeed = 30;
-
-        /// The scale factor of the exposure time.
-        /// This value is only used in the delta time exposure mode.
-        public float exposureTimeScale {
-            get { return _exposureTimeScale; }
-            set { _exposureTimeScale = value; }
-        }
-
-        [SerializeField]
-        [Tooltip("The scale factor of the exposure time.")]
-        float _exposureTimeScale = 1;
+        int _shutterSpeed = 48;
 
         /// The amount of sample points, which affects quality and performance.
         public SampleCount sampleCount {
@@ -99,21 +99,14 @@ namespace Kino
         SampleCount _sampleCount = SampleCount.Medium;
 
         /// The number of sample points. This value is only used when
-        /// SampleCount.Variable is given to sampleCount.
-        public int sampleCountValue {
-            get {
-                switch (_sampleCount) {
-                    case SampleCount.Low:    return 4;
-                    case SampleCount.Medium: return 10;
-                    case SampleCount.High:   return 20;
-                }
-                return Mathf.Clamp(_sampleCountValue, 2, 128);
-            }
-            set { _sampleCountValue = value; }
+        /// SampleCount.Custom is given to sampleCount.
+        public int customSampleCount {
+            get { return _customSampleCount; }
+            set { _customSampleCount = value; }
         }
 
         [SerializeField]
-        int _sampleCountValue = 12;
+        int _customSampleCount = 10;
 
         /// The maximum length of blur trails, given as a percentage of the
         /// screen height. The larger the value is, the longer the trails are,
@@ -126,7 +119,7 @@ namespace Kino
         [SerializeField, Range(0.5f, 10.0f)]
         [Tooltip("The maximum length of blur trails, specified as a percentage " +
          "of the screen height. Large values may introduce artifacts.")]
-        float _maxBlurRadius = 3.5f;
+        float _maxBlurRadius = 4.0f;
 
         #endregion
 
@@ -150,10 +143,23 @@ namespace Kino
 
         float VelocityScale {
             get {
-                if (exposureMode == ExposureMode.Constant)
+                if (exposureTimeMode == ExposureTimeMode.Constant)
                     return 1.0f / (shutterSpeed * Time.smoothDeltaTime);
-                else // ExposureMode.DeltaTime
-                    return exposureTimeScale;
+                else // ExposureMode.FrameRateDependent
+                    return Mathf.Clamp01(shutterAngle / 360);
+            }
+        }
+
+        int LoopCount {
+            get {
+                switch (_sampleCount)
+                {
+                    case SampleCount.Low:    return 2;  // 4 samples
+                    case SampleCount.Medium: return 5;  // 10 samples
+                    case SampleCount.High:   return 10; // 20 samples
+                }
+                // SampleCount.Custom
+                return Mathf.Clamp(_customSampleCount / 2, 1, 64);
             }
         }
 
@@ -244,8 +250,7 @@ namespace Kino
             ReleaseTemporaryRT(tile);
 
             // Pass 6 - Reconstruction pass
-            var loopCount = Mathf.Max(sampleCountValue / 2, 1);
-            _reconstructionMaterial.SetInt("_LoopCount", loopCount);
+            _reconstructionMaterial.SetInt("_LoopCount", LoopCount);
             _reconstructionMaterial.SetFloat("_MaxBlurRadius", maxBlurPixels);
             _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
             _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
