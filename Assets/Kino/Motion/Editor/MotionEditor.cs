@@ -34,7 +34,7 @@ namespace Kino
     [CustomEditor(typeof(Motion))]
     public class MotionEditor : Editor
     {
-        SerializedProperty _exposureTimeMode;
+        SerializedProperty _exposureTime;
         SerializedProperty _shutterAngle;
         SerializedProperty _shutterSpeed;
         SerializedProperty _sampleCount;
@@ -45,13 +45,12 @@ namespace Kino
         #endif
 
         static GUIContent _textTime = new GUIContent("Time = 1 /");
-        static GUIContent _textExposureTime = new GUIContent("Exposure Time");
         static GUIContent _textCustomValue = new GUIContent("Custom Value");
         static GUIContent _textMaxBlur = new GUIContent("Max Blur Radius %");
 
         void OnEnable()
         {
-            _exposureTimeMode = serializedObject.FindProperty("_exposureTimeMode");
+            _exposureTime = serializedObject.FindProperty("_exposureTime");
             _shutterAngle = serializedObject.FindProperty("_shutterAngle");
             _shutterSpeed = serializedObject.FindProperty("_shutterSpeed");
             _sampleCount = serializedObject.FindProperty("_sampleCount");
@@ -67,17 +66,17 @@ namespace Kino
             serializedObject.Update();
 
             // Exposure time options
-            EditorGUILayout.PropertyField(_exposureTimeMode, _textExposureTime);
+            EditorGUILayout.PropertyField(_exposureTime);
 
-            var showAllItems = _exposureTimeMode.hasMultipleDifferentValues;
-            var exposureTimeMode = (Motion.ExposureTimeMode)_exposureTimeMode.enumValueIndex;
+            var showAllItems = _exposureTime.hasMultipleDifferentValues;
+            var exposureTime = (Motion.ExposureTime)_exposureTime.enumValueIndex;
 
             EditorGUI.indentLevel++;
 
-            if (showAllItems || exposureTimeMode == Motion.ExposureTimeMode.FrameRateDependent)
+            if (showAllItems || exposureTime == Motion.ExposureTime.FrameRateDependent)
                 EditorGUILayout.PropertyField(_shutterAngle);
 
-            if (showAllItems || exposureTimeMode == Motion.ExposureTimeMode.Constant)
+            if (showAllItems || exposureTime == Motion.ExposureTime.Constant)
                 EditorGUILayout.PropertyField(_shutterSpeed, _textTime);
 
             EditorGUI.indentLevel--;
