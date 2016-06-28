@@ -21,6 +21,10 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
+
+// Debug items are hidden by default (not useful for users).
+// #define SHOW_DEBUG
+
 using UnityEngine;
 using UnityEditor;
 
@@ -30,64 +34,71 @@ namespace Kino
     [CustomEditor(typeof(Motion))]
     public class MotionEditor : Editor
     {
-        SerializedProperty _exposureMode;
+        SerializedProperty _exposureTime;
+        SerializedProperty _shutterAngle;
         SerializedProperty _shutterSpeed;
-        SerializedProperty _exposureTimeScale;
         SerializedProperty _sampleCount;
-        SerializedProperty _sampleCountValue;
+        SerializedProperty _customSampleCount;
         SerializedProperty _maxBlurRadius;
+        #if SHOW_DEBUG
         SerializedProperty _debugMode;
+        #endif
 
-        static GUIContent _textScale = new GUIContent("Scale");
-        static GUIContent _textValue = new GUIContent("Value");
         static GUIContent _textTime = new GUIContent("Time = 1 /");
+        static GUIContent _textCustomValue = new GUIContent("Custom Value");
         static GUIContent _textMaxBlur = new GUIContent("Max Blur Radius %");
 
         void OnEnable()
         {
-            _exposureMode = serializedObject.FindProperty("_exposureMode");
+            _exposureTime = serializedObject.FindProperty("_exposureTime");
+            _shutterAngle = serializedObject.FindProperty("_shutterAngle");
             _shutterSpeed = serializedObject.FindProperty("_shutterSpeed");
-            _exposureTimeScale = serializedObject.FindProperty("_exposureTimeScale");
             _sampleCount = serializedObject.FindProperty("_sampleCount");
-            _sampleCountValue = serializedObject.FindProperty("_sampleCountValue");
+            _customSampleCount = serializedObject.FindProperty("_customSampleCount");
             _maxBlurRadius = serializedObject.FindProperty("_maxBlurRadius");
+            #if SHOW_DEBUG
             _debugMode = serializedObject.FindProperty("_debugMode");
+            #endif
         }
 
         public override void OnInspectorGUI()
         {
             serializedObject.Update();
 
-            EditorGUILayout.PropertyField(_exposureMode);
+            // Exposure time options
+            EditorGUILayout.PropertyField(_exposureTime);
 
-            if (_exposureMode.hasMultipleDifferentValues ||
-                _exposureMode.enumValueIndex == (int)Motion.ExposureMode.Constant)
-            {
-                EditorGUI.indentLevel++;
+            var showAllItems = _exposureTime.hasMultipleDifferentValues;
+            var exposureTime = (Motion.ExposureTime)_exposureTime.enumValueIndex;
+
+            EditorGUI.indentLevel++;
+
+            if (showAllItems || exposureTime == Motion.ExposureTime.DeltaTime)
+                EditorGUILayout.PropertyField(_shutterAngle);
+
+            if (showAllItems || exposureTime == Motion.ExposureTime.Constant)
                 EditorGUILayout.PropertyField(_shutterSpeed, _textTime);
-                EditorGUI.indentLevel--;
-            }
 
-            if (_exposureMode.hasMultipleDifferentValues ||
-                _exposureMode.enumValueIndex == (int)Motion.ExposureMode.DeltaTime)
-            {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(_exposureTimeScale, _textScale);
-                EditorGUI.indentLevel--;
-            }
+            EditorGUI.indentLevel--;
 
+            // Sample count options
             EditorGUILayout.PropertyField(_sampleCount);
 
-            if (_sampleCount.hasMultipleDifferentValues ||
-                _sampleCount.enumValueIndex == (int)Motion.SampleCount.Variable)
-            {
-                EditorGUI.indentLevel++;
-                EditorGUILayout.PropertyField(_sampleCountValue, _textValue);
-                EditorGUI.indentLevel--;
-            }
+            showAllItems = _sampleCount.hasMultipleDifferentValues;
+            var sampleCount = (Motion.SampleCount)_sampleCount.enumValueIndex;
 
+            EditorGUI.indentLevel++;
+
+            if (showAllItems || sampleCount == Motion.SampleCount.Custom)
+                EditorGUILayout.PropertyField(_customSampleCount, _textCustomValue);
+
+            EditorGUI.indentLevel--;
+
+            // Other options
             EditorGUILayout.PropertyField(_maxBlurRadius, _textMaxBlur);
+            #if SHOW_DEBUG
             EditorGUILayout.PropertyField(_debugMode);
+            #endif
 
             serializedObject.ApplyModifiedProperties();
         }
