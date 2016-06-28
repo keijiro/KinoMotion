@@ -33,9 +33,9 @@ namespace Kino
 
         /// How the exposure time (shutter speed) is determined.
         public enum ExposureTimeMode {
-            /// Frame rate-dependent exposure mode.
+            /// Frame rate-dependent mode.
             FrameRateDependent,
-            /// Constant-time exposure mode.
+            /// Constant-time mode.
             Constant
         }
 
@@ -67,7 +67,7 @@ namespace Kino
 
         /// The angle of rotary shutter. The larger the angle is, the longer
         /// the exposure time is. This value is only used in frame rate-
-        /// dependent exposure mode.
+        /// dependent mode.
         public float shutterAngle {
             get { return _shutterAngle; }
             set { _shutterAngle = value; }
@@ -77,8 +77,8 @@ namespace Kino
         [Tooltip("The angle of rotary shutter. Larger values give longer exposure.")]
         float _shutterAngle = 270;
 
-        /// The denominator of the custom shutter speed.
-        /// This value is only used in constant-time exposure mode.
+        /// The denominator of the custom shutter speed. This value is only
+        /// used in constant-time mode.
         public int shutterSpeed {
             get { return _shutterSpeed; }
             set { _shutterSpeed = value; }
@@ -108,18 +108,18 @@ namespace Kino
         [SerializeField]
         int _customSampleCount = 10;
 
-        /// The maximum length of blur trails, given as a percentage of the
-        /// screen height. The larger the value is, the longer the trails are,
-        /// but also the more noticeable artifacts it gets.
+        /// The maximum length of motion blur, given as a percentage of the
+        /// screen height. The larger the value is, the stronger the effects
+        /// are, but also the more noticeable artifacts it gets.
         public float maxBlurRadius {
             get { return Mathf.Clamp(_maxBlurRadius, 0.5f, 10.0f); }
             set { _maxBlurRadius = value; }
         }
 
         [SerializeField, Range(0.5f, 10.0f)]
-        [Tooltip("The maximum length of blur trails, specified as a percentage " +
-         "of the screen height. Large values may introduce artifacts.")]
-        float _maxBlurRadius = 4.0f;
+        [Tooltip("The maximum length of motion blur, given as a percentage " +
+         "of the screen height. Larger values may introduce artifacts.")]
+        float _maxBlurRadius = 5.0f;
 
         #endregion
 

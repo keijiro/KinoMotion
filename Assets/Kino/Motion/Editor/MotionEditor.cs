@@ -22,7 +22,7 @@
 // THE SOFTWARE.
 //
 
-// Debug items are hidden by default (not very useful for users).
+// Debug items are hidden by default (not useful for users).
 // #define SHOW_DEBUG
 
 using UnityEngine;
