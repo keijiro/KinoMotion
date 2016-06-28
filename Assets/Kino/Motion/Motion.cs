@@ -31,11 +31,11 @@ namespace Kino
     {
         #region Public enumerations
 
-        /// How the exposure time (shutter speed) is determined.
+        /// How the exposure time is determined.
         public enum ExposureTime {
-            /// Frame rate-dependent mode.
-            FrameRateDependent,
-            /// Constant-time mode.
+            /// Use Time.deltaTime as the exposure time.
+            DeltaTime,
+            /// Use a constant time given to shutterSpeed.
             Constant
         }
 
@@ -55,19 +55,18 @@ namespace Kino
 
         #region Public properties
 
-        /// How the exposure time (shutter speed) is determined.
+        /// How the exposure time is determined.
         public ExposureTime exposureTime {
             get { return _exposureTime; }
             set { _exposureTime = value; }
         }
 
         [SerializeField]
-        [Tooltip("How the exposure time (shutter speed) is determined.")]
-        ExposureTime _exposureTime = ExposureTime.FrameRateDependent;
+        [Tooltip("How the exposure time is determined.")]
+        ExposureTime _exposureTime = ExposureTime.DeltaTime;
 
         /// The angle of rotary shutter. The larger the angle is, the longer
-        /// the exposure time is. This value is only used in frame rate-
-        /// dependent mode.
+        /// the exposure time is. This value is only used in delta time mode.
         public float shutterAngle {
             get { return _shutterAngle; }
             set { _shutterAngle = value; }
@@ -145,7 +144,7 @@ namespace Kino
             get {
                 if (exposureTime == ExposureTime.Constant)
                     return 1.0f / (shutterSpeed * Time.smoothDeltaTime);
-                else // ExposureTime.FrameRateDependent
+                else // ExposureTime.DeltaTime
                     return Mathf.Clamp01(shutterAngle / 360);
             }
         }

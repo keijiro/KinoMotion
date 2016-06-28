@@ -73,7 +73,7 @@ namespace Kino
 
             EditorGUI.indentLevel++;
 
-            if (showAllItems || exposureTime == Motion.ExposureTime.FrameRateDependent)
+            if (showAllItems || exposureTime == Motion.ExposureTime.DeltaTime)
                 EditorGUILayout.PropertyField(_shutterAngle);
 
             if (showAllItems || exposureTime == Motion.ExposureTime.Constant)
