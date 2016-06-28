@@ -77,7 +77,7 @@ namespace Kino
         float _shutterAngle = 270;
 
         /// The denominator of the custom shutter speed. This value is only
-        /// used in constant-time mode.
+        /// used in constant time mode.
         public int shutterSpeed {
             get { return _shutterSpeed; }
             set { _shutterSpeed = value; }
