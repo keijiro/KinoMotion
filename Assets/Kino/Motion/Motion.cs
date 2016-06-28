@@ -134,11 +134,9 @@ namespace Kino
 
         #region Private properties and methods
 
-        [SerializeField] Shader _prefilterShader;
-        [SerializeField] Shader _reconstructionShader;
+        [SerializeField] Shader _shader;
 
-        Material _prefilterMaterial;
-        Material _reconstructionMaterial;
+        Material _material;
 
         float VelocityScale {
             get {
@@ -182,13 +180,8 @@ namespace Kino
 
         void OnEnable()
         {
-            var prefilterShader = Shader.Find("Hidden/Kino/Motion/Prefilter");
-            _prefilterMaterial = new Material(prefilterShader);
-            _prefilterMaterial.hideFlags = HideFlags.DontSave;
-
-            var reconstructionShader = Shader.Find("Hidden/Kino/Motion/Reconstruction");
-            _reconstructionMaterial = new Material(reconstructionShader);
-            _reconstructionMaterial.hideFlags = HideFlags.DontSave;
+            _material = new Material(Shader.Find("Hidden/Kino/Motion"));
+            _material.hideFlags = HideFlags.DontSave;
 
             GetComponent<Camera>().depthTextureMode |=
                 DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
@@ -196,11 +189,8 @@ namespace Kino
 
         void OnDisable()
         {
-            DestroyImmediate(_prefilterMaterial);
-            _prefilterMaterial = null;
-
-            DestroyImmediate(_reconstructionMaterial);
-            _reconstructionMaterial = null;
+            DestroyImmediate(_material);
+            _material = null;
         }
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -219,42 +209,42 @@ namespace Kino
             var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
             // Pass 1 - Velocity/depth packing
-            _prefilterMaterial.SetFloat("_VelocityScale", VelocityScale);
-            _prefilterMaterial.SetFloat("_MaxBlurRadius", maxBlurPixels);
+            _material.SetFloat("_VelocityScale", VelocityScale);
+            _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
 
             var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
-            Graphics.Blit(null, vbuffer, _prefilterMaterial, 0);
+            Graphics.Blit(null, vbuffer, _material, 0);
 
             // Pass 2 - First TileMax filter (1/4 downsize)
             var tile4 = GetTemporaryRT(source, 4, vectorRTFormat);
-            Graphics.Blit(vbuffer, tile4, _prefilterMaterial, 1);
+            Graphics.Blit(vbuffer, tile4, _material, 1);
 
             // Pass 3 - Second TileMax filter (1/2 downsize)
             var tile8 = GetTemporaryRT(source, 8, vectorRTFormat);
-            Graphics.Blit(tile4, tile8, _prefilterMaterial, 2);
+            Graphics.Blit(tile4, tile8, _material, 2);
             ReleaseTemporaryRT(tile4);
 
             // Pass 4 - Third TileMax filter (reduce to tileSize)
             var tileMaxOffs = Vector2.one * (tileSize / 8.0f - 1) * -0.5f;
-            _prefilterMaterial.SetVector("_TileMaxOffs", tileMaxOffs);
-            _prefilterMaterial.SetInt("_TileMaxLoop", tileSize / 8);
+            _material.SetVector("_TileMaxOffs", tileMaxOffs);
+            _material.SetInt("_TileMaxLoop", tileSize / 8);
 
             var tile = GetTemporaryRT(source, tileSize, vectorRTFormat);
-            Graphics.Blit(tile8, tile, _prefilterMaterial, 3);
+            Graphics.Blit(tile8, tile, _material, 3);
             ReleaseTemporaryRT(tile8);
 
             // Pass 5 - NeighborMax filter
             var neighborMax = GetTemporaryRT(source, tileSize, vectorRTFormat);
-            Graphics.Blit(tile, neighborMax, _prefilterMaterial, 4);
+            Graphics.Blit(tile, neighborMax, _material, 4);
             ReleaseTemporaryRT(tile);
 
             // Pass 6 - Reconstruction pass
-            _reconstructionMaterial.SetInt("_LoopCount", LoopCount);
-            _reconstructionMaterial.SetFloat("_MaxBlurRadius", maxBlurPixels);
-            _reconstructionMaterial.SetTexture("_NeighborMaxTex", neighborMax);
-            _reconstructionMaterial.SetTexture("_VelocityTex", vbuffer);
+            _material.SetInt("_LoopCount", LoopCount);
+            _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
+            _material.SetTexture("_NeighborMaxTex", neighborMax);
+            _material.SetTexture("_VelocityTex", vbuffer);
 
-            Graphics.Blit(source, destination, _reconstructionMaterial, (int)_debugMode);
+            Graphics.Blit(source, destination, _material, 5 + (int)_debugMode);
 
             // Cleaning up
             ReleaseTemporaryRT(vbuffer);
