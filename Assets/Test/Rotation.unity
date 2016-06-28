@@ -667,16 +667,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 860e82cd7a6bb4a29a4b7add4ec78d10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _exposureMode: 0
+  _exposureTime: 1
+  _shutterAngle: 270
   _shutterSpeed: 30
-  _exposureTimeScale: 1
   _sampleCount: 1
-  _sampleCountValue: 12
+  _customSampleCount: 10
   _maxBlurRadius: 5
   _debugMode: 0
-  _prefilterShader: {fileID: 4800000, guid: b727eaa2e4a5d4a48a84f0b17e61ad82, type: 3}
-  _reconstructionShader: {fileID: 4800000, guid: 31985cbea77794aa2bc041a90b1974a2,
-    type: 3}
+  _shader: {fileID: 4800000, guid: 60701d53f4c638048b5e49c197d08b77, type: 3}
 --- !u!81 &1603570669
 AudioListener:
   m_ObjectHideFlags: 0
