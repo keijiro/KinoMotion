@@ -43,3 +43,19 @@ half4 frag_Depth(v2f_multitex i) : SV_Target
     half z = frac(tex2D(_VelocityTex, i.uv1).z * 128);
     return half4(z, z, z, 1);
 }
+
+half4 frag_FrameBlending(v2f_multitex i) : SV_Target
+{
+    half4 last = tex2D(_MainTex, i.uv0);
+
+    half3 sum = last;
+    sum += tex2D(_History1Tex, i.uv1) * _History1Weight;
+    sum += tex2D(_History2Tex, i.uv1) * _History2Weight;
+    sum += tex2D(_History3Tex, i.uv1) * _History3Weight;
+    sum += tex2D(_History4Tex, i.uv1) * _History4Weight;
+
+    half total =
+        1 + _History1Weight + _History2Weight + _History3Weight + _History4Weight;
+
+    return half4(sum / total, last.a);
+}

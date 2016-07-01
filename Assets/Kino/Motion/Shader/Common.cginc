@@ -57,6 +57,17 @@ half _MaxBlurRadius;
 // Filter parameters/coefficients
 int _LoopCount;
 
+// History buffer for frame blending
+sampler2D _History1Tex;
+sampler2D _History2Tex;
+sampler2D _History3Tex;
+sampler2D _History4Tex;
+
+half _History1Weight;
+half _History2Weight;
+half _History3Weight;
+half _History4Weight;
+
 // Vertex shader for multiple texture blitting
 struct v2f_multitex
 {

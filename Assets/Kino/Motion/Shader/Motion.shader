@@ -28,6 +28,10 @@ Shader "Hidden/Kino/Motion"
         _MainTex        ("", 2D) = ""{}
         _VelocityTex    ("", 2D) = ""{}
         _NeighborMaxTex ("", 2D) = ""{}
+        _History1Tex    ("", 2D) = ""{}
+        _History2Tex    ("", 2D) = ""{}
+        _History3Tex    ("", 2D) = ""{}
+        _History4Tex    ("", 2D) = ""{}
     }
     Subshader
     {
@@ -97,7 +101,18 @@ Shader "Hidden/Kino/Motion"
             #pragma target 3.0
             ENDCG
         }
-        // Pass 6: Debug mode (velocity)
+        // Pass 6: Frame blending
+        Pass
+        {
+            ZTest Always Cull Off ZWrite Off
+            CGPROGRAM
+            #include "Misc.cginc"
+            #pragma vertex vert_Multitex
+            #pragma fragment frag_FrameBlending
+            #pragma target 3.0
+            ENDCG
+        }
+        // Pass 7: Debug mode (velocity)
         Pass
         {
             ZTest Always Cull Off ZWrite Off
@@ -107,7 +122,7 @@ Shader "Hidden/Kino/Motion"
             #pragma fragment frag_Velocity
             ENDCG
         }
-        // Pass 7: Debug mode (NeighborMax)
+        // Pass 8: Debug mode (NeighborMax)
         Pass
         {
             ZTest Always Cull Off ZWrite Off
@@ -117,7 +132,7 @@ Shader "Hidden/Kino/Motion"
             #pragma fragment frag_NeighborMax
             ENDCG
         }
-        // Pass 8: Debug mode (Depth)
+        // Pass 9: Debug mode (Depth)
         Pass
         {
             ZTest Always Cull Off ZWrite Off

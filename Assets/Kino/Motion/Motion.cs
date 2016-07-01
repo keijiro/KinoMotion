@@ -27,7 +27,7 @@ namespace Kino
 {
     [RequireComponent(typeof(Camera))]
     [AddComponentMenu("Kino Image Effects/Motion")]
-    public class Motion : MonoBehaviour
+    public partial class Motion : MonoBehaviour
     {
         #region Public enumerations
 
@@ -120,6 +120,17 @@ namespace Kino
          "of the screen height. Larger values may introduce artifacts.")]
         float _maxBlurRadius = 5.0f;
 
+        /// The strength of multi-frame blending. The opacity of preceding
+        /// frames are determined from this coefficient and time differences.
+        public float frameBlending {
+            get { return _frameBlending; }
+            set { _frameBlending = value; }
+        }
+
+        [SerializeField, Range(0, 1)]
+        [Tooltip("The strength of multi-frame blending")]
+        float _frameBlending = 0;
+
         #endregion
 
         #region Debug settings
@@ -137,6 +148,7 @@ namespace Kino
         [SerializeField] Shader _shader;
 
         Material _material;
+        HistoryBuffer _historyBuffer;
 
         float VelocityScale {
             get {
@@ -183,6 +195,8 @@ namespace Kino
             _material = new Material(Shader.Find("Hidden/Kino/Motion"));
             _material.hideFlags = HideFlags.DontSave;
 
+            _historyBuffer = new HistoryBuffer();
+
             GetComponent<Camera>().depthTextureMode |=
                 DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
         }
@@ -191,6 +205,9 @@ namespace Kino
         {
             DestroyImmediate(_material);
             _material = null;
+
+            _historyBuffer.Release();
+            _historyBuffer = null;
         }
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -239,12 +256,29 @@ namespace Kino
             ReleaseTemporaryRT(tile);
 
             // Pass 6 - Reconstruction pass
+            var temp = GetTemporaryRT(destination, 1, destination.format);
             _material.SetInt("_LoopCount", LoopCount);
             _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
             _material.SetTexture("_NeighborMaxTex", neighborMax);
             _material.SetTexture("_VelocityTex", vbuffer);
 
-            Graphics.Blit(source, destination, _material, 5 + (int)_debugMode);
+            if (_frameBlending > 0)
+            {
+                Graphics.Blit(source, temp, _material, 5);
+
+                // Pass 7 - Frame blending
+                _historyBuffer.SetMaterialProperties(_material, _frameBlending);
+                Graphics.Blit(temp, destination, _material, 6);
+
+                // Update frame history
+                _historyBuffer.PushFrame(temp);
+                ReleaseTemporaryRT(temp);
+            }
+            else
+            {
+                // No frame blending: Directory output to the destination.
+                Graphics.Blit(source, destination, _material, 5);
+            }
 
             // Cleaning up
             ReleaseTemporaryRT(vbuffer);

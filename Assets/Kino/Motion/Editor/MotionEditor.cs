@@ -40,6 +40,7 @@ namespace Kino
         SerializedProperty _sampleCount;
         SerializedProperty _customSampleCount;
         SerializedProperty _maxBlurRadius;
+        SerializedProperty _frameBlending;
         #if SHOW_DEBUG
         SerializedProperty _debugMode;
         #endif
@@ -56,6 +57,7 @@ namespace Kino
             _sampleCount = serializedObject.FindProperty("_sampleCount");
             _customSampleCount = serializedObject.FindProperty("_customSampleCount");
             _maxBlurRadius = serializedObject.FindProperty("_maxBlurRadius");
+            _frameBlending = serializedObject.FindProperty("_frameBlending");
             #if SHOW_DEBUG
             _debugMode = serializedObject.FindProperty("_debugMode");
             #endif
@@ -96,6 +98,7 @@ namespace Kino
 
             // Other options
             EditorGUILayout.PropertyField(_maxBlurRadius, _textMaxBlur);
+            EditorGUILayout.PropertyField(_frameBlending);
             #if SHOW_DEBUG
             EditorGUILayout.PropertyField(_debugMode);
             #endif
