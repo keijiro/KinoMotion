@@ -95,7 +95,7 @@ namespace Kino
 
         [SerializeField]
         [Tooltip("The amount of sample points, which affects quality and performance.")]
-        SampleCount _sampleCount = SampleCount.Medium;
+        SampleCount _sampleCount = SampleCount.Custom;
 
         /// The number of sample points. This value is only used when
         /// SampleCount.Custom is given to sampleCount.

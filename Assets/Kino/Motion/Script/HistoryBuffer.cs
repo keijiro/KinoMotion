@@ -84,7 +84,7 @@ namespace Kino
 
                 public float CalculateWeight(float strength, float currentTime)
                 {
-                    var coeff = Mathf.Lerp(60.0f, 5.0f, strength);
+                    var coeff = Mathf.Lerp(80.0f, 10.0f, strength);
                     return Mathf.Exp((time - currentTime) * coeff);
                 }
 
