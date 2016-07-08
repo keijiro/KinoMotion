@@ -28,111 +28,119 @@ namespace Kino
 {
     public class MotionGraphDrawer
     {
+        #region Public methods
+
         public MotionGraphDrawer(Texture blendingIcon)
         {
             _blendingIcon = blendingIcon;
-            _captionStyle = new GUIStyle(EditorStyles.miniLabel);
-            _captionStyle.alignment = TextAnchor.LowerCenter;
+
+            _lowerCenterStyle = new GUIStyle(EditorStyles.miniLabel);
+            _lowerCenterStyle.alignment = TextAnchor.LowerCenter;
+
+            _middleCenterStyle = new GUIStyle(EditorStyles.miniLabel);
+            _middleCenterStyle.alignment = TextAnchor.MiddleCenter;
         }
 
         public void DrawShutterGraph(float angle)
         {
-            var height = 32;
+            var center = GUILayoutUtility.GetRect(128, kHeight).center;
 
-            _rect = GUILayoutUtility.GetRect(128, height);
+            // Parameters used to make transitions smooth.
+            var zeroWhenOff = Mathf.Min(1.0f, angle * 0.1f);
+            var zeroWhenFull = Mathf.Min(1.0f, (360 - angle) * 0.02f);
 
-            DrawDisc(0.2f, 0.5f, height * 0.38f, colorWhite);
-            DrawDisc(0.2f, 0.5f, height * 0.18f, colorGray);
-            DrawArc(0.2f, 0.5f, height * 0.5f, (360 - angle), colorGray);
-            DrawDisc(0.2f, 0.5f, 1, colorWhite);
+            // Shutter angle graph
+            var discCenter = center - new Vector2(kHeight * 2.1f, 0);
+            // - exposure duration indicator
+            DrawDisc(discCenter, kHeight * Mathf.Lerp(0.5f, 0.38f, zeroWhenFull), colorGray);
+            // - shutter disc
+            DrawDisc(discCenter, kHeight * 0.18f * zeroWhenFull, colorDark);
+            // - shutter blade
+            DrawArc(discCenter, kHeight * 0.5f, 360 - angle, colorDark);
+            // - shutter axis
+            DrawDisc(discCenter, zeroWhenOff, colorGray);
 
-            DrawRect(0.35f, 0.25f, 0.95f, 0.75f, 0.18f, 0.45f);
-            DrawRect(0.35f, 0.25f, Mathf.Lerp(0.35f, 0.95f, angle / 360), 0.75f, 0.45f, 0);
+            // Shutter label (off/full)
+            var labelSize = new Vector2(kHeight, kHeight);
+            var labelOrigin = discCenter - labelSize * 0.5f;
+            var labelRect = new Rect(labelOrigin, labelSize);
 
-            var labelPos = PointInRect(0.35f, 0.7f) + Vector3.right * 2;
-            var labelText = "Exposure time = " + (angle / 3.6f).ToString("0") + "% of ΔT";
-            Handles.Label(labelPos, labelText, EditorStyles.miniLabel);
+            if (angle == 0)
+                GUI.Label(labelRect, "Off", _middleCenterStyle);
+            else if (angle == 360)
+                GUI.Label(labelRect, "Full", _middleCenterStyle);
+
+            // Exposure time bar graph
+            var outerBarSize = new Vector2(4.4f, 0.5f) * kHeight;
+            var innerBarSize = outerBarSize;
+            innerBarSize.x *= angle / 360;
+
+            var barCenter = center + new Vector2(kHeight * 1.1f, 0);
+            var barOrigin = barCenter - outerBarSize * 0.5f;
+
+            DrawRect(barOrigin, outerBarSize, colorGray, Color.clear);
+            DrawRect(barOrigin, innerBarSize, colorGray, colorGray);
+
+            var barText = "Exposure time = " + (angle / 3.6f).ToString("0") + "% of ΔT";
+            GUI.Label(new Rect(barOrigin, outerBarSize), barText, _middleCenterStyle);
         }
 
         public void DrawBlendingGraph(float strength)
         {
-            var height = 32;
+            var center = GUILayoutUtility.GetRect(128, kHeight).center;
 
-            _rect = GUILayoutUtility.GetRect(128, height);
+            var iconSize = new Vector2(kHeight, kHeight);
+            var iconStride = new Vector2(kHeight * 0.8f, 0); 
+            var iconOrigin = center - iconSize * 0.5f - iconStride * 2;
 
-            var iconSize = new Vector2(height, height);
-            var iconTop = _rect.center - Vector2.up * (height / 2);
-            var iconWidth = new Vector2(height, 0); 
+            for (var i = 0; i < 5; i++)
+            {
+                var weight = BlendingWeight(strength, i / 60.0f);
+                var rect = new Rect(iconOrigin + iconStride * i, iconSize);
 
-            var weight1 = BlendingWeight(strength, 4.0f / 60);
-            var weight2 = BlendingWeight(strength, 3.0f / 60);
-            var weight3 = BlendingWeight(strength, 2.0f / 60);
-            var weight4 = BlendingWeight(strength, 1.0f / 60);
-            var weight5 = 1.0f;
+                GUI.color = new Color(0.4f, 0.4f, 0.4f, weight);
+                GUI.Label(rect, _blendingIcon);
 
-            var rect1 = new Rect(iconTop + iconWidth * 1.1f, iconSize);
-            var rect2 = new Rect(iconTop + iconWidth * 0.3f, iconSize);
-            var rect3 = new Rect(iconTop - iconWidth * 0.5f, iconSize);
-            var rect4 = new Rect(iconTop - iconWidth * 1.3f, iconSize);
-            var rect5 = new Rect(iconTop - iconWidth * 2.1f, iconSize);
-
-            GUI.color = Grayscale(0.4f, weight1); GUI.Label(rect1, _blendingIcon);
-            GUI.color = Grayscale(0.4f, weight2); GUI.Label(rect2, _blendingIcon);
-            GUI.color = Grayscale(0.4f, weight3); GUI.Label(rect3, _blendingIcon);
-            GUI.color = Grayscale(0.4f, weight4); GUI.Label(rect4, _blendingIcon);
-            GUI.color = Grayscale(0.4f, weight5); GUI.Label(rect5, _blendingIcon);
-
-            GUI.color = Color.white;
-            GUI.Label(rect1, (weight1 * 100).ToString("0") + "%", _captionStyle);
-            GUI.Label(rect2, (weight2 * 100).ToString("0") + "%", _captionStyle);
-            GUI.Label(rect3, (weight3 * 100).ToString("0") + "%", _captionStyle);
-            GUI.Label(rect4, (weight4 * 100).ToString("0") + "%", _captionStyle);
-            GUI.Label(rect5, (weight5 * 100).ToString("0") + "%", _captionStyle);
+                GUI.color = Color.white;
+                GUI.Label(rect, (weight * 100).ToString("0") + "%", _lowerCenterStyle);
+            }
         }
 
-        static Color colorGray = new Color(0.16f, 0.16f, 0.16f);
-        static Color colorWhite = new Color(0.45f, 0.45f, 0.45f);
+        #endregion
 
-        Rect _rect;
-        Vector3[] _rectVertices = new Vector3[4];
+        #region Private members
+
+        const float kHeight = 32;
+
+        static Color colorDark = new Color(0.16f, 0.16f, 0.16f);
+        static Color colorGray = new Color(0.34f, 0.34f, 0.34f);
 
         Texture _blendingIcon;
-        GUIStyle _captionStyle;
 
+        GUIStyle _lowerCenterStyle;
+        GUIStyle _middleCenterStyle;
+
+        Vector3[] _rectVertices = new Vector3[4];
+
+        // Weight function for multi frame blending
         float BlendingWeight(float strength, float time)
         {
-            if (strength > 0)
+            if (strength > 0 || time == 0)
                 return Mathf.Exp(-time * Mathf.Lerp(80.0f, 10.0f, strength));
             else
                 return 0;
         }
 
-        // Grayscale color
-        Color Grayscale(float level, float alpha = 1)
-        {
-            return new Color(level, level, level, alpha);
-        }
-
-        // Transform a point into the graph rect.
-        Vector3 PointInRect(float x, float y)
-        {
-            x = Mathf.Lerp(_rect.x, _rect.xMax, x);
-            y = Mathf.Lerp(_rect.yMax, _rect.y, y);
-            return new Vector3(x, y, 0);
-        }
-
         // Draw a solid disc in the graph rect.
-        void DrawDisc(float x, float y, float radius, Color fill)
+        void DrawDisc(Vector2 center, float radius, Color fill)
         {
             Handles.color = fill;
-            Handles.DrawSolidDisc(PointInRect(x, y), Vector3.forward, radius);
+            Handles.DrawSolidDisc(center, Vector3.forward, radius);
         }
 
         // Draw an arc in the graph rect.
-        void DrawArc(float x, float y, float radius, float angle, Color fill)
+        void DrawArc(Vector2 center, float radius, float angle, Color fill)
         {
-            var center = PointInRect(x, y);
-
             var start = new Vector2(
                 -Mathf.Cos(Mathf.Deg2Rad * angle / 2),
                  Mathf.Sin(Mathf.Deg2Rad * angle / 2)
@@ -143,19 +151,20 @@ namespace Kino
         }
 
         // Draw a rectangle in the graph rect.
-        void DrawRect(float x1, float y1, float x2, float y2, float fill, float line)
+        void DrawRect(Vector2 origin, Vector2 size, Color lineColor, Color fillColor)
         {
-            _rectVertices[0] = PointInRect(x1, y1);
-            _rectVertices[1] = PointInRect(x2, y1);
-            _rectVertices[2] = PointInRect(x2, y2);
-            _rectVertices[3] = PointInRect(x1, y2);
+            var p0 = origin;
+            var p1 = origin + size;
+
+            _rectVertices[0] = p0;
+            _rectVertices[1] = new Vector2(p1.x, p0.y);
+            _rectVertices[2] = p1;
+            _rectVertices[3] = new Vector2(p0.x, p1.y);
 
             Handles.color = Color.white;
-            Handles.DrawSolidRectangleWithOutline(
-                _rectVertices,
-                fill < 0 ? Color.clear : Color.white * fill,
-                line < 0 ? Color.clear : Color.white * line
-            );
+            Handles.DrawSolidRectangleWithOutline(_rectVertices, fillColor, lineColor);
         }
+
+        #endregion
     }
 }
