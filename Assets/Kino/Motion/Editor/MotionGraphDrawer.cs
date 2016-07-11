@@ -50,7 +50,7 @@ namespace Kino
             var zeroWhenFull = Mathf.Min(1.0f, (360 - angle) * 0.02f);
 
             // Shutter angle graph
-            var discCenter = center - new Vector2(kHeight * 2.1f, 0);
+            var discCenter = center - new Vector2(kHeight * 2.5f, 0);
             // - exposure duration indicator
             DrawDisc(discCenter, kHeight * Mathf.Lerp(0.5f, 0.38f, zeroWhenFull), colorGray);
             // - shutter disc
@@ -71,11 +71,11 @@ namespace Kino
                 GUI.Label(labelRect, "Full", _middleCenterStyle);
 
             // Exposure time bar graph
-            var outerBarSize = new Vector2(4.4f, 0.5f) * kHeight;
+            var outerBarSize = new Vector2(4.5f, 0.5f) * kHeight;
             var innerBarSize = outerBarSize;
             innerBarSize.x *= angle / 360;
 
-            var barCenter = center + new Vector2(kHeight * 1.1f, 0);
+            var barCenter = center + new Vector2(kHeight * 0.9f, 0);
             var barOrigin = barCenter - outerBarSize * 0.5f;
 
             DrawRect(barOrigin, outerBarSize, colorGray, Color.clear);
