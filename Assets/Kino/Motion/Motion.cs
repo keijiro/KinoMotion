@@ -149,7 +149,9 @@ namespace Kino
             var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
             // Pass 1 - Velocity/depth packing
-            _material.SetFloat("_VelocityScale", _shutterAngle / 360);
+            // Motion vectors are scaled by an empirical factor of 1.45.
+            var velocityScale = _shutterAngle / 360 * 1.45f;
+            _material.SetFloat("_VelocityScale", velocityScale);
             _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
 
             var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
