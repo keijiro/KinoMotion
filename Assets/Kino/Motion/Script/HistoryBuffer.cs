@@ -27,6 +27,7 @@ namespace Kino
 {
     public partial class Motion : MonoBehaviour
     {
+        // History buffer used for multi frame blending
         class HistoryBuffer
         {
             #region Public methods
@@ -64,9 +65,11 @@ namespace Kino
 
             public void PushFrame(RenderTexture source)
             {
+                // Push only when actual update (ignore paused frame).
                 var frameCount = Time.frameCount;
                 if (frameCount == _lastFrameCount) return;
 
+                // Update the frame record.
                 _frameList[frameCount % _frameList.Length].MakeRecord(source);
                 _lastFrameCount = frameCount;
             }
@@ -115,12 +118,16 @@ namespace Kino
             Frame[] _frameList;
             int _lastFrameCount;
 
+            // Retrieve a frame record with relative indexing.
+            // Use a negative index to refer to previous frames.
             Frame GetFrameRelative(int offset)
             {
                 var index = (Time.frameCount + _frameList.Length + offset) % _frameList.Length;
                 return _frameList[index];
             }
 
+            // Determine the texture format to store frames.
+            // Tries to use one of the 16-bit color formats if available.
             static RenderTextureFormat DetermineTextureFormat()
             {
                 RenderTextureFormat[] formats = {

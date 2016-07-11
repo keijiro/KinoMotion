@@ -101,7 +101,7 @@ namespace Kino
             var center = GUILayoutUtility.GetRect(128, kHeight).center;
 
             var iconSize = new Vector2(kHeight, kHeight);
-            var iconStride = new Vector2(kHeight * 0.8f, 0); 
+            var iconStride = new Vector2(kHeight * 0.8f, 0);
             var iconOrigin = center - iconSize * 0.5f - iconStride * 2;
 
             for (var i = 0; i < 5; i++)
