@@ -39,6 +39,17 @@ namespace Kino
 
             _middleCenterStyle = new GUIStyle(EditorStyles.miniLabel);
             _middleCenterStyle.alignment = TextAnchor.MiddleCenter;
+
+            if (EditorGUIUtility.isProSkin)
+            {
+                _colorDark = new Color(0.18f, 0.18f, 0.18f);
+                _colorGray = new Color(0.43f, 0.43f, 0.43f);
+            }
+            else
+            {
+                _colorDark = new Color(0.64f, 0.64f, 0.64f);
+                _colorGray = new Color(0.92f, 0.92f, 0.92f);
+            }
         }
 
         public void DrawShutterGraph(float angle)
@@ -50,15 +61,15 @@ namespace Kino
             var zeroWhenFull = Mathf.Min(1.0f, (360 - angle) * 0.02f);
 
             // Shutter angle graph
-            var discCenter = center - new Vector2(kHeight * 2.5f, 0);
+            var discCenter = center - new Vector2(kHeight * 2.6f, 0);
             // - exposure duration indicator
-            DrawDisc(discCenter, kHeight * Mathf.Lerp(0.5f, 0.38f, zeroWhenFull), colorGray);
+            DrawDisc(discCenter, kHeight * Mathf.Lerp(0.5f, 0.38f, zeroWhenFull), _colorGray);
             // - shutter disc
-            DrawDisc(discCenter, kHeight * 0.18f * zeroWhenFull, colorDark);
+            DrawDisc(discCenter, kHeight * 0.16f * zeroWhenFull, _colorDark);
             // - shutter blade
-            DrawArc(discCenter, kHeight * 0.5f, 360 - angle, colorDark);
+            DrawArc(discCenter, kHeight * 0.5f, 360 - angle, _colorDark);
             // - shutter axis
-            DrawDisc(discCenter, zeroWhenOff, colorGray);
+            DrawDisc(discCenter, zeroWhenOff, _colorGray);
 
             // Shutter label (off/full)
             var labelSize = new Vector2(kHeight, kHeight);
@@ -78,8 +89,8 @@ namespace Kino
             var barCenter = center + new Vector2(kHeight * 0.9f, 0);
             var barOrigin = barCenter - outerBarSize * 0.5f;
 
-            DrawRect(barOrigin, outerBarSize, colorGray, Color.clear);
-            DrawRect(barOrigin, innerBarSize, colorGray, colorGray);
+            DrawRect(barOrigin, innerBarSize, _colorGray, _colorGray);
+            DrawRect(barOrigin, outerBarSize, _colorDark, Color.clear);
 
             var barText = "Exposure time = " + (angle / 3.6f).ToString("0") + "% of ΔT";
             GUI.Label(new Rect(barOrigin, outerBarSize), barText, _middleCenterStyle);
@@ -98,12 +109,16 @@ namespace Kino
                 var weight = BlendingWeight(strength, i / 60.0f);
                 var rect = new Rect(iconOrigin + iconStride * i, iconSize);
 
-                GUI.color = new Color(0.4f, 0.4f, 0.4f, weight);
+                var color = _colorGray;
+                color.a = weight;
+
+                GUI.color = color;
                 GUI.Label(rect, _blendingIcon);
 
                 GUI.color = Color.white;
                 GUI.Label(rect, (weight * 100).ToString("0") + "%", _lowerCenterStyle);
             }
+            // EditorGUIUtility.isProSkin
         }
 
         #endregion
@@ -112,13 +127,13 @@ namespace Kino
 
         const float kHeight = 32;
 
-        static Color colorDark = new Color(0.16f, 0.16f, 0.16f);
-        static Color colorGray = new Color(0.34f, 0.34f, 0.34f);
-
         Texture _blendingIcon;
 
         GUIStyle _lowerCenterStyle;
         GUIStyle _middleCenterStyle;
+
+        Color _colorDark;
+        Color _colorGray;
 
         Vector3[] _rectVertices = new Vector3[4];
 
