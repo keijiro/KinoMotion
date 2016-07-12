@@ -409,12 +409,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 860e82cd7a6bb4a29a4b7add4ec78d10, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _exposureTime: 0
   _shutterAngle: 360
-  _shutterSpeed: 48
-  _sampleCount: 1
-  _customSampleCount: 10
+  _sampleCount: 8
   _maxBlurRadius: 5
+  _frameBlending: 0
   _debugMode: 0
   _shader: {fileID: 4800000, guid: 60701d53f4c638048b5e49c197d08b77, type: 3}
 --- !u!81 &1603570669
