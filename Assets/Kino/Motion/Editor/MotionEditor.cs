@@ -91,6 +91,7 @@ namespace Kino
             EditorGUILayout.PropertyField(_frameBlending, _textStrength);
 
             #if ADVANCED_OPTIONS
+            EditorGUILayout.Space();
             EditorGUILayout.PropertyField(_debugMode);
             #endif
 
