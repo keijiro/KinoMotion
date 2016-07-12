@@ -27,43 +27,9 @@ namespace Kino
 {
     [RequireComponent(typeof(Camera))]
     [AddComponentMenu("Kino Image Effects/Motion")]
-    public class Motion : MonoBehaviour
+    public partial class Motion : MonoBehaviour
     {
-        #region Public enumerations
-
-        /// How the exposure time is determined.
-        public enum ExposureTime {
-            /// Use Time.deltaTime as the exposure time.
-            DeltaTime,
-            /// Use a constant time given to shutterSpeed.
-            Constant
-        }
-
-        /// Amount of sample points.
-        public enum SampleCount {
-            /// The minimum amount of samples.
-            Low,
-            /// A medium amount of samples. Recommended for typical use.
-            Medium,
-            /// A large amount of samples.
-            High,
-            /// Use a given number of samples (customSampleCount)
-            Custom
-        }
-
-        #endregion
-
         #region Public properties
-
-        /// How the exposure time is determined.
-        public ExposureTime exposureTime {
-            get { return _exposureTime; }
-            set { _exposureTime = value; }
-        }
-
-        [SerializeField]
-        [Tooltip("How the exposure time is determined.")]
-        ExposureTime _exposureTime = ExposureTime.DeltaTime;
 
         /// The angle of rotary shutter. The larger the angle is, the longer
         /// the exposure time is. This value is only used in delta time mode.
@@ -76,36 +42,15 @@ namespace Kino
         [Tooltip("The angle of rotary shutter. Larger values give longer exposure.")]
         float _shutterAngle = 270;
 
-        /// The denominator of the custom shutter speed. This value is only
-        /// used in constant time mode.
-        public int shutterSpeed {
-            get { return _shutterSpeed; }
-            set { _shutterSpeed = value; }
-        }
-
-        [SerializeField]
-        [Tooltip("The denominator of the shutter speed.")]
-        int _shutterSpeed = 48;
-
         /// The amount of sample points, which affects quality and performance.
-        public SampleCount sampleCount {
+        public int sampleCount {
             get { return _sampleCount; }
             set { _sampleCount = value; }
         }
 
         [SerializeField]
         [Tooltip("The amount of sample points, which affects quality and performance.")]
-        SampleCount _sampleCount = SampleCount.Medium;
-
-        /// The number of sample points. This value is only used when
-        /// SampleCount.Custom is given to sampleCount.
-        public int customSampleCount {
-            get { return _customSampleCount; }
-            set { _customSampleCount = value; }
-        }
-
-        [SerializeField]
-        int _customSampleCount = 10;
+        int _sampleCount = 8;
 
         /// The maximum length of motion blur, given as a percentage of the
         /// screen height. The larger the value is, the stronger the effects
@@ -119,6 +64,17 @@ namespace Kino
         [Tooltip("The maximum length of motion blur, given as a percentage " +
          "of the screen height. Larger values may introduce artifacts.")]
         float _maxBlurRadius = 5.0f;
+
+        /// The strength of multi frame blending. The opacity of preceding
+        /// frames are determined from this coefficient and time differences.
+        public float frameBlending {
+            get { return _frameBlending; }
+            set { _frameBlending = value; }
+        }
+
+        [SerializeField, Range(0, 1)]
+        [Tooltip("The strength of multi frame blending")]
+        float _frameBlending = 0;
 
         #endregion
 
@@ -137,28 +93,7 @@ namespace Kino
         [SerializeField] Shader _shader;
 
         Material _material;
-
-        float VelocityScale {
-            get {
-                if (exposureTime == ExposureTime.Constant)
-                    return 1.0f / (shutterSpeed * Time.smoothDeltaTime);
-                else // ExposureTime.DeltaTime
-                    return Mathf.Clamp01(shutterAngle / 360);
-            }
-        }
-
-        int LoopCount {
-            get {
-                switch (_sampleCount)
-                {
-                    case SampleCount.Low:    return 2;  // 4 samples
-                    case SampleCount.Medium: return 5;  // 10 samples
-                    case SampleCount.High:   return 10; // 20 samples
-                }
-                // SampleCount.Custom
-                return Mathf.Clamp(_customSampleCount / 2, 1, 64);
-            }
-        }
+        HistoryBuffer _historyBuffer;
 
         RenderTexture GetTemporaryRT(Texture source, int divider, RenderTextureFormat format)
         {
@@ -183,6 +118,8 @@ namespace Kino
             _material = new Material(Shader.Find("Hidden/Kino/Motion"));
             _material.hideFlags = HideFlags.DontSave;
 
+            _historyBuffer = new HistoryBuffer();
+
             GetComponent<Camera>().depthTextureMode |=
                 DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
         }
@@ -191,6 +128,9 @@ namespace Kino
         {
             DestroyImmediate(_material);
             _material = null;
+
+            _historyBuffer.Release();
+            _historyBuffer = null;
         }
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
@@ -209,7 +149,9 @@ namespace Kino
             var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
             // Pass 1 - Velocity/depth packing
-            _material.SetFloat("_VelocityScale", VelocityScale);
+            // Motion vectors are scaled by an empirical factor of 1.45.
+            var velocityScale = _shutterAngle / 360 * 1.45f;
+            _material.SetFloat("_VelocityScale", velocityScale);
             _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
 
             var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
@@ -239,12 +181,34 @@ namespace Kino
             ReleaseTemporaryRT(tile);
 
             // Pass 6 - Reconstruction pass
-            _material.SetInt("_LoopCount", LoopCount);
+            var temp = GetTemporaryRT(destination, 1, destination.format);
+            _material.SetInt("_LoopCount", Mathf.Clamp(_sampleCount / 2, 1, 64));
             _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
             _material.SetTexture("_NeighborMaxTex", neighborMax);
             _material.SetTexture("_VelocityTex", vbuffer);
 
-            Graphics.Blit(source, destination, _material, 5 + (int)_debugMode);
+            if (_debugMode != DebugMode.Off)
+            {
+                // Blit with the debug shader.
+                Graphics.Blit(source, destination, _material, 6 + (int)_debugMode);
+            }
+            else if (_frameBlending > 0)
+            {
+                Graphics.Blit(source, temp, _material, 5);
+
+                // Pass 7 - Frame blending
+                _historyBuffer.SetMaterialProperties(_material, _frameBlending);
+                Graphics.Blit(temp, destination, _material, 6);
+
+                // Update frame history
+                _historyBuffer.PushFrame(temp);
+                ReleaseTemporaryRT(temp);
+            }
+            else
+            {
+                // No frame blending: Directory output to the destination.
+                Graphics.Blit(source, destination, _material, 5);
+            }
 
             // Cleaning up
             ReleaseTemporaryRT(vbuffer);
