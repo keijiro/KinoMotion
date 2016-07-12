@@ -25,6 +25,12 @@
 // Suppress "assigned but never used" warning
 #pragma warning disable 414
 
+// Show fancy graphs
+#define SHOW_GRAPHS
+
+// Show advanced options (not useful in most cases)
+// #define ADVANCED_OPTIONS
+
 using UnityEngine;
 using UnityEditor;
 
@@ -61,21 +67,32 @@ namespace Kino
 
             serializedObject.Update();
 
-            // Note: Some controls are hidden for UX reasons.
-
             EditorGUILayout.LabelField("Shutter Speed Simulation", EditorStyles.boldLabel);
+
+            #if SHOW_GRAPHS
             _graph.DrawShutterGraph(_shutterAngle.floatValue);
+            #endif
+
             EditorGUILayout.PropertyField(_shutterAngle);
             EditorGUILayout.PropertyField(_sampleCount);
-            // EditorGUILayout.PropertyField(_maxBlurRadius);
+
+            #if ADVANCED_OPTIONS
+            EditorGUILayout.PropertyField(_maxBlurRadius);
+            #endif
 
             EditorGUILayout.Space();
 
             EditorGUILayout.LabelField("Multi Frame Blending", EditorStyles.boldLabel);
+
+            #if SHOW_GRAPHS
             _graph.DrawBlendingGraph(_frameBlending.floatValue);
+            #endif
+
             EditorGUILayout.PropertyField(_frameBlending, _textStrength);
 
-            // EditorGUILayout.PropertyField(_debugMode);
+            #if ADVANCED_OPTIONS
+            EditorGUILayout.PropertyField(_debugMode);
+            #endif
 
             serializedObject.ApplyModifiedProperties();
         }

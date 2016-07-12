@@ -89,11 +89,11 @@ namespace Kino
             var barCenter = center + new Vector2(kHeight * 0.9f, 0);
             var barOrigin = barCenter - outerBarSize * 0.5f;
 
-            //DrawRect(barOrigin, outerBarSize, _colorDark);
-            //DrawRect(barOrigin, innerBarSize, _colorGray);
+            DrawRect(barOrigin, outerBarSize, _colorDark);
+            DrawRect(barOrigin, innerBarSize, _colorGray);
 
             var barText = "Exposure time = " + (angle / 3.6f).ToString("0") + "% of ΔT";
-            GUI.Label(new Rect(barOrigin, outerBarSize), barText, EditorStyles.miniLabel);
+            GUI.Label(new Rect(barOrigin, outerBarSize), barText, _middleCenterStyle);
         }
 
         public void DrawBlendingGraph(float strength)
