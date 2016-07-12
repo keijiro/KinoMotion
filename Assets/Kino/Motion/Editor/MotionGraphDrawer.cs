@@ -61,7 +61,7 @@ namespace Kino
             var zeroWhenFull = Mathf.Min(1.0f, (360 - angle) * 0.02f);
 
             // Shutter angle graph
-            var discCenter = center - new Vector2(kHeight * 2.6f, 0);
+            var discCenter = center - new Vector2(kHeight * 2.4f, 0);
             // - exposure duration indicator
             DrawDisc(discCenter, kHeight * Mathf.Lerp(0.5f, 0.38f, zeroWhenFull), _colorGray);
             // - shutter disc
@@ -82,18 +82,18 @@ namespace Kino
                 GUI.Label(labelRect, "Full", _middleCenterStyle);
 
             // Exposure time bar graph
-            var outerBarSize = new Vector2(4.5f, 0.5f) * kHeight;
+            var outerBarSize = new Vector2(4.75f, 0.5f) * kHeight;
             var innerBarSize = outerBarSize;
             innerBarSize.x *= angle / 360;
 
             var barCenter = center + new Vector2(kHeight * 0.9f, 0);
             var barOrigin = barCenter - outerBarSize * 0.5f;
 
-            DrawRect(barOrigin, innerBarSize, _colorGray, _colorGray);
-            DrawRect(barOrigin, outerBarSize, _colorDark, Color.clear);
+            //DrawRect(barOrigin, outerBarSize, _colorDark);
+            //DrawRect(barOrigin, innerBarSize, _colorGray);
 
             var barText = "Exposure time = " + (angle / 3.6f).ToString("0") + "% of ΔT";
-            GUI.Label(new Rect(barOrigin, outerBarSize), barText, _middleCenterStyle);
+            GUI.Label(new Rect(barOrigin, outerBarSize), barText, EditorStyles.miniLabel);
         }
 
         public void DrawBlendingGraph(float strength)
@@ -101,7 +101,7 @@ namespace Kino
             var center = GUILayoutUtility.GetRect(128, kHeight).center;
 
             var iconSize = new Vector2(kHeight, kHeight);
-            var iconStride = new Vector2(kHeight * 0.8f, 0);
+            var iconStride = new Vector2(kHeight * 0.9f, 0);
             var iconOrigin = center - iconSize * 0.5f - iconStride * 2;
 
             for (var i = 0; i < 5; i++)
@@ -166,7 +166,7 @@ namespace Kino
         }
 
         // Draw a rectangle in the graph rect.
-        void DrawRect(Vector2 origin, Vector2 size, Color lineColor, Color fillColor)
+        void DrawRect(Vector2 origin, Vector2 size, Color color)
         {
             var p0 = origin;
             var p1 = origin + size;
@@ -177,7 +177,7 @@ namespace Kino
             _rectVertices[3] = new Vector2(p0.x, p1.y);
 
             Handles.color = Color.white;
-            Handles.DrawSolidRectangleWithOutline(_rectVertices, fillColor, lineColor);
+            Handles.DrawSolidRectangleWithOutline(_rectVertices, color, Color.clear);
         }
 
         #endregion
