@@ -181,7 +181,6 @@ namespace Kino
             ReleaseTemporaryRT(tile);
 
             // Pass 6 - Reconstruction pass
-            var temp = GetTemporaryRT(destination, 1, destination.format);
             _material.SetInt("_LoopCount", Mathf.Clamp(_sampleCount / 2, 1, 64));
             _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
             _material.SetTexture("_NeighborMaxTex", neighborMax);
@@ -194,6 +193,7 @@ namespace Kino
             }
             else if (_frameBlending > 0)
             {
+                var temp = GetTemporaryRT(source, 1, source.format);
                 Graphics.Blit(source, temp, _material, 5);
 
                 // Pass 7 - Frame blending
