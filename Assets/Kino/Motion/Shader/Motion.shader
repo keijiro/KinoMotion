@@ -25,13 +25,17 @@ Shader "Hidden/Kino/Motion"
 {
     Properties
     {
-        _MainTex        ("", 2D) = ""{}
-        _VelocityTex    ("", 2D) = ""{}
-        _NeighborMaxTex ("", 2D) = ""{}
-        _History1Tex    ("", 2D) = ""{}
-        _History2Tex    ("", 2D) = ""{}
-        _History3Tex    ("", 2D) = ""{}
-        _History4Tex    ("", 2D) = ""{}
+        _MainTex           ("", 2D) = ""{}
+        _VelocityTex       ("", 2D) = ""{}
+        _NeighborMaxTex    ("", 2D) = ""{}
+        _History1LumaTex   ("", 2D) = ""{}
+        _History2LumaTex   ("", 2D) = ""{}
+        _History3LumaTex   ("", 2D) = ""{}
+        _History4LumaTex   ("", 2D) = ""{}
+        _History1ChromaTex ("", 2D) = ""{}
+        _History2ChromaTex ("", 2D) = ""{}
+        _History3ChromaTex ("", 2D) = ""{}
+        _History4ChromaTex ("", 2D) = ""{}
     }
     Subshader
     {
@@ -109,6 +113,16 @@ Shader "Hidden/Kino/Motion"
             #include "Misc.cginc"
             #pragma vertex vert_Multitex
             #pragma fragment frag_FrameBlending
+            #pragma target 3.0
+            ENDCG
+        }
+        Pass
+        {
+            ZTest Always Cull Off ZWrite Off
+            CGPROGRAM
+            #include "Misc.cginc"
+            #pragma vertex vert_img
+            #pragma fragment frag_Compress
             #pragma target 3.0
             ENDCG
         }

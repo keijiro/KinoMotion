@@ -34,7 +34,6 @@ namespace Kino
 
             public HistoryBuffer()
             {
-                Frame.textureFormat = DetermineTextureFormat();
                 _frameList = new Frame[4];
             }
 
@@ -52,10 +51,15 @@ namespace Kino
                 var f3 = GetFrameRelative(-3);
                 var f4 = GetFrameRelative(-4);
 
-                material.SetTexture("_History1Tex", f1.texture);
-                material.SetTexture("_History2Tex", f2.texture);
-                material.SetTexture("_History3Tex", f3.texture);
-                material.SetTexture("_History4Tex", f4.texture);
+                material.SetTexture("_History1LumaTex", f1.lumaTexture);
+                material.SetTexture("_History2LumaTex", f2.lumaTexture);
+                material.SetTexture("_History3LumaTex", f3.lumaTexture);
+                material.SetTexture("_History4LumaTex", f4.lumaTexture);
+
+                material.SetTexture("_History1ChromaTex", f1.chromaTexture);
+                material.SetTexture("_History2ChromaTex", f2.chromaTexture);
+                material.SetTexture("_History3ChromaTex", f3.chromaTexture);
+                material.SetTexture("_History4ChromaTex", f4.chromaTexture);
 
                 material.SetFloat("_History1Weight", f1.CalculateWeight(strength, t));
                 material.SetFloat("_History2Weight", f2.CalculateWeight(strength, t));
@@ -63,14 +67,14 @@ namespace Kino
                 material.SetFloat("_History4Weight", f4.CalculateWeight(strength, t));
             }
 
-            public void PushFrame(RenderTexture source)
+            public void PushFrame(RenderTexture source, Material material)
             {
                 // Push only when actual update (ignore paused frame).
                 var frameCount = Time.frameCount;
                 if (frameCount == _lastFrameCount) return;
 
                 // Update the frame record.
-                _frameList[frameCount % _frameList.Length].MakeRecord(source);
+                _frameList[frameCount % _frameList.Length].MakeRecord(source, material);
                 _lastFrameCount = frameCount;
             }
 
@@ -80,10 +84,11 @@ namespace Kino
 
             struct Frame
             {
-                public RenderTexture texture;
+                public RenderTexture lumaTexture;
+                public RenderTexture chromaTexture;
                 public float time;
 
-                static public RenderTextureFormat textureFormat;
+                RenderBuffer[] _mrt;
 
                 public float CalculateWeight(float strength, float currentTime)
                 {
@@ -93,19 +98,26 @@ namespace Kino
 
                 public void Release()
                 {
-                    if (texture != null)
-                        RenderTexture.ReleaseTemporary(texture);
-                    texture = null;
+                    if (lumaTexture != null) RenderTexture.ReleaseTemporary(lumaTexture);
+                    if (chromaTexture != null) RenderTexture.ReleaseTemporary(chromaTexture);
+                    lumaTexture = null;
+                    chromaTexture = null;
                 }
 
-                public void MakeRecord(RenderTexture source)
+                public void MakeRecord(RenderTexture source, Material material)
                 {
                     Release();
 
-                    texture = RenderTexture.GetTemporary(
-                        source.width / 2, source.height / 2, 0, textureFormat
-                    );
-                    Graphics.Blit(source, texture);
+                    lumaTexture = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.R8);
+                    chromaTexture = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.R8);
+
+                    if (_mrt == null) _mrt = new RenderBuffer[2];
+
+                    _mrt[0] = lumaTexture.colorBuffer;
+                    _mrt[1] = chromaTexture.colorBuffer;
+
+                    Graphics.SetRenderTarget(_mrt, lumaTexture.depthBuffer);
+                    Graphics.Blit(source, material, 7);
 
                     time = Time.time;
                 }
@@ -124,23 +136,6 @@ namespace Kino
             {
                 var index = (Time.frameCount + _frameList.Length + offset) % _frameList.Length;
                 return _frameList[index];
-            }
-
-            // Determine the texture format to store frames.
-            // Tries to use one of the 16-bit color formats if available.
-            static RenderTextureFormat DetermineTextureFormat()
-            {
-                RenderTextureFormat[] formats = {
-                    RenderTextureFormat.RGB565,
-                    RenderTextureFormat.ARGB1555,
-                    RenderTextureFormat.ARGB4444
-                };
-
-                foreach (var f in formats)
-                    if (SystemInfo.SupportsRenderTextureFormat(f))
-                        return f;
-
-                return RenderTextureFormat.Default;
             }
 
             #endregion

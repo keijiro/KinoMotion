@@ -201,7 +201,7 @@ namespace Kino
                 Graphics.Blit(temp, destination, _material, 6);
 
                 // Update frame history
-                _historyBuffer.PushFrame(temp);
+                _historyBuffer.PushFrame(temp, _material);
                 ReleaseTemporaryRT(temp);
             }
             else
