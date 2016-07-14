@@ -110,23 +110,26 @@ Shader "Hidden/Kino/Motion"
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #include "Misc.cginc"
+            #pragma multi_compile _ UNITY_COLORSPACE_GAMMA
+            #include "FrameBlending.cginc"
             #pragma vertex vert_Multitex
             #pragma fragment frag_FrameBlending
             #pragma target 3.0
             ENDCG
         }
+        // Pass 7: Frame compression
         Pass
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #include "Misc.cginc"
+            #pragma multi_compile _ UNITY_COLORSPACE_GAMMA
+            #include "FrameBlending.cginc"
             #pragma vertex vert_img
-            #pragma fragment frag_Compress
+            #pragma fragment frag_FrameCompress
             #pragma target 3.0
             ENDCG
         }
-        // Pass 7: Debug mode (velocity)
+        // Pass 8: Debug mode (velocity)
         Pass
         {
             ZTest Always Cull Off ZWrite Off
@@ -136,7 +139,7 @@ Shader "Hidden/Kino/Motion"
             #pragma fragment frag_Velocity
             ENDCG
         }
-        // Pass 8: Debug mode (NeighborMax)
+        // Pass 9: Debug mode (NeighborMax)
         Pass
         {
             ZTest Always Cull Off ZWrite Off
@@ -146,7 +149,7 @@ Shader "Hidden/Kino/Motion"
             #pragma fragment frag_NeighborMax
             ENDCG
         }
-        // Pass 9: Debug mode (Depth)
+        // Pass 10: Debug mode (Depth)
         Pass
         {
             ZTest Always Cull Off ZWrite Off

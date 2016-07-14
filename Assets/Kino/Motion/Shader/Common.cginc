@@ -63,20 +63,10 @@ sampler2D _History2LumaTex;
 sampler2D _History3LumaTex;
 sampler2D _History4LumaTex;
 
-float4 _History1LumaTex_TexelSize;
-float4 _History2LumaTex_TexelSize;
-float4 _History3LumaTex_TexelSize;
-float4 _History4LumaTex_TexelSize;
-
 sampler2D _History1ChromaTex;
 sampler2D _History2ChromaTex;
 sampler2D _History3ChromaTex;
 sampler2D _History4ChromaTex;
-
-float4 _History1ChromaTex_TexelSize;
-float4 _History2ChromaTex_TexelSize;
-float4 _History3ChromaTex_TexelSize;
-float4 _History4ChromaTex_TexelSize;
 
 half _History1Weight;
 half _History2Weight;

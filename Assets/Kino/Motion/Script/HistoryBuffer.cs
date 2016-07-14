@@ -111,6 +111,9 @@ namespace Kino
                     lumaTexture = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.R8);
                     chromaTexture = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.R8);
 
+                    lumaTexture.filterMode = FilterMode.Point;
+                    chromaTexture.filterMode = FilterMode.Point;
+
                     if (_mrt == null) _mrt = new RenderBuffer[2];
 
                     _mrt[0] = lumaTexture.colorBuffer;
