@@ -21,21 +21,13 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 // THE SOFTWARE.
 //
-Shader "Hidden/Kino/Motion"
+Shader "Hidden/Kino/Motion/Reconstruction"
 {
     Properties
     {
-        _MainTex           ("", 2D) = ""{}
-        _VelocityTex       ("", 2D) = ""{}
-        _NeighborMaxTex    ("", 2D) = ""{}
-        _History1LumaTex   ("", 2D) = ""{}
-        _History2LumaTex   ("", 2D) = ""{}
-        _History3LumaTex   ("", 2D) = ""{}
-        _History4LumaTex   ("", 2D) = ""{}
-        _History1ChromaTex ("", 2D) = ""{}
-        _History2ChromaTex ("", 2D) = ""{}
-        _History3ChromaTex ("", 2D) = ""{}
-        _History4ChromaTex ("", 2D) = ""{}
+        _MainTex        ("", 2D) = ""{}
+        _VelocityTex    ("", 2D) = ""{}
+        _NeighborMaxTex ("", 2D) = ""{}
     }
     Subshader
     {
@@ -103,60 +95,6 @@ Shader "Hidden/Kino/Motion"
             #pragma vertex vert_Multitex
             #pragma fragment frag_Reconstruction
             #pragma target 3.0
-            ENDCG
-        }
-        // Pass 6: Frame blending
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #pragma multi_compile _ UNITY_COLORSPACE_GAMMA
-            #include "FrameBlending.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_FrameBlending
-            #pragma target 3.0
-            ENDCG
-        }
-        // Pass 7: Frame compression
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #pragma multi_compile _ UNITY_COLORSPACE_GAMMA
-            #include "FrameBlending.cginc"
-            #pragma vertex vert_img
-            #pragma fragment frag_FrameCompress
-            #pragma target 3.0
-            ENDCG
-        }
-        // Pass 8: Debug mode (velocity)
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #include "Misc.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_Velocity
-            ENDCG
-        }
-        // Pass 9: Debug mode (NeighborMax)
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #include "Misc.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_NeighborMax
-            ENDCG
-        }
-        // Pass 10: Debug mode (Depth)
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #include "Misc.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_Depth
             ENDCG
         }
     }

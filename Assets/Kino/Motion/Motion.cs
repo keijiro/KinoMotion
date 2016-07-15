@@ -52,20 +52,7 @@ namespace Kino
         [Tooltip("The amount of sample points, which affects quality and performance.")]
         int _sampleCount = 8;
 
-        /// The maximum length of motion blur, given as a percentage of the
-        /// screen height. The larger the value is, the stronger the effects
-        /// are, but also the more noticeable artifacts it gets.
-        public float maxBlurRadius {
-            get { return Mathf.Clamp(_maxBlurRadius, 0.5f, 10.0f); }
-            set { _maxBlurRadius = value; }
-        }
-
-        [SerializeField, Range(0.5f, 10.0f)]
-        [Tooltip("The maximum length of motion blur, given as a percentage " +
-         "of the screen height. Larger values may introduce artifacts.")]
-        float _maxBlurRadius = 5.0f;
-
-        /// The strength of multi frame blending. The opacity of preceding
+        /// The strength of multiple frame blending. The opacity of preceding
         /// frames are determined from this coefficient and time differences.
         public float frameBlending {
             get { return _frameBlending; }
@@ -73,41 +60,18 @@ namespace Kino
         }
 
         [SerializeField, Range(0, 1)]
-        [Tooltip("The strength of multi frame blending")]
+        [Tooltip("The strength of multiple frame blending")]
         float _frameBlending = 0;
 
         #endregion
 
-        #region Debug settings
+        #region Private fields
 
-        enum DebugMode { Off, Velocity, NeighborMax, Depth }
+        [SerializeField] Shader _reconstructionShader;
+        [SerializeField] Shader _frameBlendingShader;
 
-        [SerializeField]
-        [Tooltip("The debug visualization mode.")]
-        DebugMode _debugMode;
-
-        #endregion
-
-        #region Private properties and methods
-
-        [SerializeField] Shader _shader;
-
-        Material _material;
-        HistoryBuffer _historyBuffer;
-
-        RenderTexture GetTemporaryRT(Texture source, int divider, RenderTextureFormat format)
-        {
-            var w = source.width / divider;
-            var h = source.height / divider;
-            var rt = RenderTexture.GetTemporary(w, h, 0, format);
-            rt.filterMode = FilterMode.Point;
-            return rt;
-        }
-
-        void ReleaseTemporaryRT(RenderTexture rt)
-        {
-            RenderTexture.ReleaseTemporary(rt);
-        }
+        ReconstructionFilter _reconstructionFilter;
+        FrameBlendingFilter _frameBlendingFilter;
 
         #endregion
 
@@ -115,104 +79,67 @@ namespace Kino
 
         void OnEnable()
         {
-            _material = new Material(Shader.Find("Hidden/Kino/Motion"));
-            _material.hideFlags = HideFlags.DontSave;
-
-            _historyBuffer = new HistoryBuffer();
-
-            GetComponent<Camera>().depthTextureMode |=
-                DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
+            _reconstructionFilter = new ReconstructionFilter();
+            _frameBlendingFilter = new FrameBlendingFilter();
         }
 
         void OnDisable()
         {
-            DestroyImmediate(_material);
-            _material = null;
+            _reconstructionFilter.Release();
+            _frameBlendingFilter.Release();
 
-            _historyBuffer.Release();
-            _historyBuffer = null;
+            _reconstructionFilter = null;
+            _frameBlendingFilter = null;
+        }
+
+        void Update()
+        {
+            // Enable motion vector rendering if reuqired.
+            if (_shutterAngle > 0)
+                GetComponent<Camera>().depthTextureMode |=
+                    DepthTextureMode.Depth | DepthTextureMode.MotionVectors;
         }
 
         void OnRenderImage(RenderTexture source, RenderTexture destination)
         {
-            // Texture format for storing packed velocity/depth.
-            const RenderTextureFormat packedRTFormat = RenderTextureFormat.ARGB2101010;
-
-            // Texture format for storing 2D vectors.
-            const RenderTextureFormat vectorRTFormat = RenderTextureFormat.RGHalf;
-
-            // Calculate the maximum blur radius in pixels.
-            var maxBlurPixels = (int)(maxBlurRadius * source.height / 100);
-
-            // Calculate the TileMax size.
-            // It should be a multiple of 8 and larger than maxBlur.
-            var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
-
-            // Pass 1 - Velocity/depth packing
-            // Motion vectors are scaled by an empirical factor of 1.45.
-            var velocityScale = _shutterAngle / 360 * 1.45f;
-            _material.SetFloat("_VelocityScale", velocityScale);
-            _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
-
-            var vbuffer = GetTemporaryRT(source, 1, packedRTFormat);
-            Graphics.Blit(null, vbuffer, _material, 0);
-
-            // Pass 2 - First TileMax filter (1/4 downsize)
-            var tile4 = GetTemporaryRT(source, 4, vectorRTFormat);
-            Graphics.Blit(vbuffer, tile4, _material, 1);
-
-            // Pass 3 - Second TileMax filter (1/2 downsize)
-            var tile8 = GetTemporaryRT(source, 8, vectorRTFormat);
-            Graphics.Blit(tile4, tile8, _material, 2);
-            ReleaseTemporaryRT(tile4);
-
-            // Pass 4 - Third TileMax filter (reduce to tileSize)
-            var tileMaxOffs = Vector2.one * (tileSize / 8.0f - 1) * -0.5f;
-            _material.SetVector("_TileMaxOffs", tileMaxOffs);
-            _material.SetInt("_TileMaxLoop", tileSize / 8);
-
-            var tile = GetTemporaryRT(source, tileSize, vectorRTFormat);
-            Graphics.Blit(tile8, tile, _material, 3);
-            ReleaseTemporaryRT(tile8);
-
-            // Pass 5 - NeighborMax filter
-            var neighborMax = GetTemporaryRT(source, tileSize, vectorRTFormat);
-            Graphics.Blit(tile, neighborMax, _material, 4);
-            ReleaseTemporaryRT(tile);
-
-            // Pass 6 - Reconstruction pass
-            _material.SetInt("_LoopCount", Mathf.Clamp(_sampleCount / 2, 1, 64));
-            _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
-            _material.SetTexture("_NeighborMaxTex", neighborMax);
-            _material.SetTexture("_VelocityTex", vbuffer);
-
-            if (_debugMode != DebugMode.Off)
+            if (_shutterAngle > 0 && _frameBlending > 0)
             {
-                // Blit with the debug shader.
-                Graphics.Blit(source, destination, _material, 6 + (int)_debugMode);
+                // Reconstruction and frame blending
+                var temp = RenderTexture.GetTemporary(
+                    source.width, source.height, 0, source.format
+                );
+
+                _reconstructionFilter.ProcessImage(
+                    _shutterAngle, _sampleCount, source, temp
+                );
+
+                _frameBlendingFilter.BlendFrames(
+                    _frameBlending, temp, destination
+                );
+                _frameBlendingFilter.PushFrame(temp);
+
+                RenderTexture.ReleaseTemporary(temp);
+            }
+            else if (_shutterAngle > 0)
+            {
+                // Reconstruction only
+                _reconstructionFilter.ProcessImage(
+                    _shutterAngle, _sampleCount, source, destination
+                );
             }
             else if (_frameBlending > 0)
             {
-                var temp = GetTemporaryRT(source, 1, source.format);
-                Graphics.Blit(source, temp, _material, 5);
-
-                // Pass 7 - Frame blending
-                _historyBuffer.SetMaterialProperties(_material, _frameBlending);
-                Graphics.Blit(temp, destination, _material, 6);
-
-                // Update frame history
-                _historyBuffer.PushFrame(temp, _material);
-                ReleaseTemporaryRT(temp);
+                // Frame blending only
+                _frameBlendingFilter.BlendFrames(
+                    _frameBlending, source, destination
+                );
+                _frameBlendingFilter.PushFrame(source);
             }
             else
             {
-                // No frame blending: Directory output to the destination.
-                Graphics.Blit(source, destination, _material, 5);
+                // Nothing to do!
+                Graphics.Blit(source, destination);
             }
-
-            // Cleaning up
-            ReleaseTemporaryRT(vbuffer);
-            ReleaseTemporaryRT(neighborMax);
         }
 
         #endregion

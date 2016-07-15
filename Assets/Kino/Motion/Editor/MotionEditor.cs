@@ -28,9 +28,6 @@
 // Show fancy graphs
 #define SHOW_GRAPHS
 
-// Show advanced options (not useful in most cases)
-// #define ADVANCED_OPTIONS
-
 using UnityEngine;
 using UnityEditor;
 
@@ -44,9 +41,7 @@ namespace Kino
 
         SerializedProperty _shutterAngle;
         SerializedProperty _sampleCount;
-        SerializedProperty _maxBlurRadius;
         SerializedProperty _frameBlending;
-        SerializedProperty _debugMode;
 
         [SerializeField] Texture2D _blendingIcon;
 
@@ -56,9 +51,7 @@ namespace Kino
         {
             _shutterAngle = serializedObject.FindProperty("_shutterAngle");
             _sampleCount = serializedObject.FindProperty("_sampleCount");
-            _maxBlurRadius = serializedObject.FindProperty("_maxBlurRadius");
             _frameBlending = serializedObject.FindProperty("_frameBlending");
-            _debugMode = serializedObject.FindProperty("_debugMode");
         }
 
         public override void OnInspectorGUI()
@@ -76,24 +69,15 @@ namespace Kino
             EditorGUILayout.PropertyField(_shutterAngle);
             EditorGUILayout.PropertyField(_sampleCount);
 
-            #if ADVANCED_OPTIONS
-            EditorGUILayout.PropertyField(_maxBlurRadius);
-            #endif
-
             EditorGUILayout.Space();
 
-            EditorGUILayout.LabelField("Multi Frame Blending", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Multiple Frame Blending", EditorStyles.boldLabel);
 
             #if SHOW_GRAPHS
             _graph.DrawBlendingGraph(_frameBlending.floatValue);
             #endif
 
             EditorGUILayout.PropertyField(_frameBlending, _textStrength);
-
-            #if ADVANCED_OPTIONS
-            EditorGUILayout.Space();
-            EditorGUILayout.PropertyField(_debugMode);
-            #endif
 
             serializedObject.ApplyModifiedProperties();
         }

@@ -25,57 +25,68 @@ using UnityEngine;
 
 namespace Kino
 {
-    public partial class Motion : MonoBehaviour
+    public partial class Motion
     {
-        // History buffer used for multi frame blending
-        class HistoryBuffer
+        // Multiple frame blending filter
+        class FrameBlendingFilter
         {
             #region Public methods
 
-            public HistoryBuffer()
+            public FrameBlendingFilter()
             {
+                _material = new Material(Shader.Find("Hidden/Kino/Motion/FrameBlending"));
+                _material.hideFlags = HideFlags.DontSave;
+
                 _frameList = new Frame[4];
             }
 
             public void Release()
             {
+                DestroyImmediate(_material);
+                _material = null;
+
                 foreach (var frame in _frameList) frame.Release();
                 _frameList = null;
             }
 
-            public void SetMaterialProperties(Material material, float strength)
+            public void PushFrame(RenderTexture source)
+            {
+                // Push only when actual update (do nothing while pausing)
+                var frameCount = Time.frameCount;
+                if (frameCount == _lastFrameCount) return;
+
+                // Update the frame record.
+                _frameList[frameCount % _frameList.Length].MakeRecord(source, _material);
+                _lastFrameCount = frameCount;
+            }
+
+            public void BlendFrames(
+                float strength, RenderTexture source, RenderTexture destination
+            )
             {
                 var t = Time.time;
+
                 var f1 = GetFrameRelative(-1);
                 var f2 = GetFrameRelative(-2);
                 var f3 = GetFrameRelative(-3);
                 var f4 = GetFrameRelative(-4);
 
-                material.SetTexture("_History1LumaTex", f1.lumaTexture);
-                material.SetTexture("_History2LumaTex", f2.lumaTexture);
-                material.SetTexture("_History3LumaTex", f3.lumaTexture);
-                material.SetTexture("_History4LumaTex", f4.lumaTexture);
+                _material.SetTexture("_History1LumaTex", f1.lumaTexture);
+                _material.SetTexture("_History2LumaTex", f2.lumaTexture);
+                _material.SetTexture("_History3LumaTex", f3.lumaTexture);
+                _material.SetTexture("_History4LumaTex", f4.lumaTexture);
 
-                material.SetTexture("_History1ChromaTex", f1.chromaTexture);
-                material.SetTexture("_History2ChromaTex", f2.chromaTexture);
-                material.SetTexture("_History3ChromaTex", f3.chromaTexture);
-                material.SetTexture("_History4ChromaTex", f4.chromaTexture);
+                _material.SetTexture("_History1ChromaTex", f1.chromaTexture);
+                _material.SetTexture("_History2ChromaTex", f2.chromaTexture);
+                _material.SetTexture("_History3ChromaTex", f3.chromaTexture);
+                _material.SetTexture("_History4ChromaTex", f4.chromaTexture);
 
-                material.SetFloat("_History1Weight", f1.CalculateWeight(strength, t));
-                material.SetFloat("_History2Weight", f2.CalculateWeight(strength, t));
-                material.SetFloat("_History3Weight", f3.CalculateWeight(strength, t));
-                material.SetFloat("_History4Weight", f4.CalculateWeight(strength, t));
-            }
+                _material.SetFloat("_History1Weight", f1.CalculateWeight(strength, t));
+                _material.SetFloat("_History2Weight", f2.CalculateWeight(strength, t));
+                _material.SetFloat("_History3Weight", f3.CalculateWeight(strength, t));
+                _material.SetFloat("_History4Weight", f4.CalculateWeight(strength, t));
 
-            public void PushFrame(RenderTexture source, Material material)
-            {
-                // Push only when actual update (ignore paused frame).
-                var frameCount = Time.frameCount;
-                if (frameCount == _lastFrameCount) return;
-
-                // Update the frame record.
-                _frameList[frameCount % _frameList.Length].MakeRecord(source, material);
-                _lastFrameCount = frameCount;
+                Graphics.Blit(source, destination, _material, 1);
             }
 
             #endregion
@@ -92,7 +103,8 @@ namespace Kino
 
                 public float CalculateWeight(float strength, float currentTime)
                 {
-                    var coeff = Mathf.Lerp(80.0f, 10.0f, strength);
+                    if (time == 0) return 0;
+                    var coeff = Mathf.Lerp(80.0f, 16.0f, strength);
                     return Mathf.Exp((time - currentTime) * coeff);
                 }
 
@@ -100,6 +112,7 @@ namespace Kino
                 {
                     if (lumaTexture != null) RenderTexture.ReleaseTemporary(lumaTexture);
                     if (chromaTexture != null) RenderTexture.ReleaseTemporary(chromaTexture);
+
                     lumaTexture = null;
                     chromaTexture = null;
                 }
@@ -115,12 +128,12 @@ namespace Kino
                     chromaTexture.filterMode = FilterMode.Point;
 
                     if (_mrt == null) _mrt = new RenderBuffer[2];
-
+                    
                     _mrt[0] = lumaTexture.colorBuffer;
                     _mrt[1] = chromaTexture.colorBuffer;
 
                     Graphics.SetRenderTarget(_mrt, lumaTexture.depthBuffer);
-                    Graphics.Blit(source, material, 7);
+                    Graphics.Blit(source, material, 0);
 
                     time = Time.time;
                 }
@@ -130,6 +143,7 @@ namespace Kino
 
             #region Private members
 
+            Material _material;
             Frame[] _frameList;
             int _lastFrameCount;
 
