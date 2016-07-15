@@ -40,6 +40,8 @@ Shader "Hidden/Kino/Motion/FrameBlending"
 
     #include "Common.cginc"
 
+    #if !SHADER_API_GLES
+
     // MRT output struct for the compressor
     struct CompressorOutput
     {
@@ -81,6 +83,16 @@ Shader "Hidden/Kino/Motion/FrameBlending"
         o.chroma = dot(lerp(kCB, kCR, odd), rgb_c) + 0.5;
         return o;
     }
+
+    #else
+
+    // MRT might not be supported. Replace it with a null shader.
+    half4 frag_FrameCompress(v2f_img i) : SV_Target
+    {
+        return 0;
+    }
+
+    #endif
 
     // Sample luma-chroma textures and convert to RGB
     half3 DecodeHistory(float2 uvLuma, float2 uvCb, float2 uvCr, sampler2D lumaTex, sampler2D chromaTex)

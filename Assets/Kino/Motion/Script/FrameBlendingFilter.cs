@@ -22,6 +22,7 @@
 // THE SOFTWARE.
 //
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Kino
 {
@@ -46,7 +47,7 @@ namespace Kino
 
             public FrameBlendingFilter()
             {
-                _useCompression = SystemInfo.supportedRenderTargetCount > 1;
+                _useCompression = CheckSupportCompression();
                 _rawTextureFormat = GetPreferredRenderTextureFormat();
 
                 _material = new Material(Shader.Find("Hidden/Kino/Motion/FrameBlending"));
@@ -181,6 +182,17 @@ namespace Kino
 
             Frame[] _frameList;
             int _lastFrameCount;
+
+            // Check if the platform has the capability of compression.
+            static bool CheckSupportCompression()
+            {
+                return
+                    // Exclude OpenGL ES 2.0 because most of them don't support
+                    // more than eight textures (we needs nine).
+                    SystemInfo.graphicsDeviceType != GraphicsDeviceType.OpenGLES2 &&
+                    SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.R8) &&
+                    SystemInfo.supportedRenderTargetCount > 1;
+            }
 
             // Determine which 16-bit render texture format is available.
             static RenderTextureFormat GetPreferredRenderTextureFormat()
