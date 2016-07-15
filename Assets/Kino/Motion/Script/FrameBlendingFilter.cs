@@ -27,13 +27,28 @@ namespace Kino
 {
     public partial class Motion
     {
+        //
         // Multiple frame blending filter
+        //
+        // This filter acts like a finite impluse response filter; stores
+        // succeeding four frames and calculate the weighted average of them.
+        //
+        // To save memory, it compresses frame images with the 4:2:2 chroma
+        // subsampling scheme. This requires MRT support. If the current
+        // environment doesn't support MRT, it tries to use one of the 16-bit
+        // texture format instead. Unfortunately, some GPUs don't support
+        // 16-bit color render targets. So, in the worst case, it ends up with
+        // using 32-bit raw textures.
+        //
         class FrameBlendingFilter
         {
             #region Public methods
 
             public FrameBlendingFilter()
             {
+                _useCompression = SystemInfo.supportedRenderTargetCount > 1;
+                _rawTextureFormat = GetPreferredRenderTextureFormat();
+
                 _material = new Material(Shader.Find("Hidden/Kino/Motion/FrameBlending"));
                 _material.hideFlags = HideFlags.DontSave;
 
@@ -56,7 +71,11 @@ namespace Kino
                 if (frameCount == _lastFrameCount) return;
 
                 // Update the frame record.
-                _frameList[frameCount % _frameList.Length].MakeRecord(source, _material);
+                var index = frameCount % _frameList.Length;
+                if (_useCompression)
+                    _frameList[index].MakeRecord(source, _material);
+                else
+                    _frameList[index].MakeRecordRaw(source, _rawTextureFormat);
                 _lastFrameCount = frameCount;
             }
 
@@ -86,7 +105,7 @@ namespace Kino
                 _material.SetFloat("_History3Weight", f3.CalculateWeight(strength, t));
                 _material.SetFloat("_History4Weight", f4.CalculateWeight(strength, t));
 
-                Graphics.Blit(source, destination, _material, 1);
+                Graphics.Blit(source, destination, _material, _useCompression ? 1 : 2);
             }
 
             #endregion
@@ -137,15 +156,46 @@ namespace Kino
 
                     time = Time.time;
                 }
+
+                public void MakeRecordRaw(RenderTexture source, RenderTextureFormat format)
+                {
+                    Release();
+
+                    lumaTexture = RenderTexture.GetTemporary(source.width, source.height, 0, format);
+                    lumaTexture.filterMode = FilterMode.Point;
+
+                    Graphics.Blit(source, lumaTexture);
+
+                    time = Time.time;
+                }
             }
 
             #endregion
 
             #region Private members
 
+            bool _useCompression;
+            RenderTextureFormat _rawTextureFormat;
+
             Material _material;
+
             Frame[] _frameList;
             int _lastFrameCount;
+
+            // Determine which 16-bit render texture format is available.
+            static RenderTextureFormat GetPreferredRenderTextureFormat()
+            {
+                RenderTextureFormat[] formats = {
+                    RenderTextureFormat.RGB565,
+                    RenderTextureFormat.ARGB1555,
+                    RenderTextureFormat.ARGB4444
+                };
+
+                foreach (var f in formats)
+                    if (SystemInfo.SupportsRenderTextureFormat(f)) return f;
+
+                return RenderTextureFormat.Default;
+            }
 
             // Retrieve a frame record with relative indexing.
             // Use a negative index to refer to previous frames.

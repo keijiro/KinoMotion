@@ -131,6 +131,20 @@ Shader "Hidden/Kino/Motion/FrameBlending"
         return half4(acc, src.a);
     }
 
+    // Frame blending fragment shader (without chroma subsampling)
+    half4 frag_FrameBlendingRaw(v2f_multitex i) : SV_Target
+    {
+        half4 src = tex2D(_MainTex, i.uv0);
+        half3 acc = src.rgb;
+        acc += tex2D(_History1LumaTex, i.uv0) * _History1Weight;
+        acc += tex2D(_History2LumaTex, i.uv0) * _History2Weight;
+        acc += tex2D(_History3LumaTex, i.uv0) * _History3Weight;
+        acc += tex2D(_History4LumaTex, i.uv0) * _History4Weight;
+        acc /= 1 + _History1Weight + _History2Weight +_History3Weight +_History4Weight;
+        return half4(acc, src.a);
+    }
+
+
     ENDCG
 
     Subshader
@@ -154,6 +168,16 @@ Shader "Hidden/Kino/Motion/FrameBlending"
             #pragma multi_compile _ UNITY_COLORSPACE_GAMMA
             #pragma vertex vert_Multitex
             #pragma fragment frag_FrameBlending
+            #pragma target 3.0
+            ENDCG
+        }
+        // Pass 2: Frame blending (without chroma subsampling)
+        Pass
+        {
+            ZTest Always Cull Off ZWrite Off
+            CGPROGRAM
+            #pragma vertex vert_Multitex
+            #pragma fragment frag_FrameBlendingRaw
             #pragma target 3.0
             ENDCG
         }
