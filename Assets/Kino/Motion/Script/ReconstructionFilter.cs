@@ -36,25 +36,22 @@ namespace Kino
             // of the screen height. Larger values may introduce artifacts.
             const float kMaxBlurRadius = 5;
 
-            // Texture format for storing packed velocity/depth.
-            const RenderTextureFormat kPackedRTFormat = RenderTextureFormat.ARGB2101010;
-
-            // Texture format for storing 2D vectors.
-            const RenderTextureFormat kVectorRTFormat = RenderTextureFormat.RGHalf;
-
             #endregion
 
             #region Public methods
 
             public ReconstructionFilter()
             {
-                _material = new Material(Shader.Find("Hidden/Kino/Motion/Reconstruction"));
-                _material.hideFlags = HideFlags.DontSave;
+                var shader = Shader.Find("Hidden/Kino/Motion/Reconstruction");
+                if (shader.isSupported && CheckTextureFormatSupport()) {
+                    _material = new Material(shader);
+                    _material.hideFlags = HideFlags.DontSave;
+                }
             }
 
             public void Release()
             {
-                DestroyImmediate(_material);
+                if (_material != null) DestroyImmediate(_material);
                 _material = null;
             }
 
@@ -63,6 +60,12 @@ namespace Kino
                 RenderTexture source, RenderTexture destination
             )
             {
+                // If the shader isn't supported, simply blit and return.
+                if (_material == null) {
+                    Graphics.Blit(source, destination);
+                    return;
+                }
+
                 // Calculate the maximum blur radius in pixels.
                 var maxBlurPixels = (int)(kMaxBlurRadius * source.height / 100);
 
@@ -76,15 +79,15 @@ namespace Kino
                 _material.SetFloat("_VelocityScale", velocityScale);
                 _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
 
-                var vbuffer = GetTemporaryRT(source, 1, kPackedRTFormat);
+                var vbuffer = GetTemporaryRT(source, 1, _packedRTFormat);
                 Graphics.Blit(null, vbuffer, _material, 0);
 
                 // 2nd pass - 1/4 TileMax filter
-                var tile4 = GetTemporaryRT(source, 4, kVectorRTFormat);
+                var tile4 = GetTemporaryRT(source, 4, _vectorRTFormat);
                 Graphics.Blit(vbuffer, tile4, _material, 1);
 
                 // 3rd pass - 1/2 TileMax filter
-                var tile8 = GetTemporaryRT(source, 8, kVectorRTFormat);
+                var tile8 = GetTemporaryRT(source, 8, _vectorRTFormat);
                 Graphics.Blit(tile4, tile8, _material, 2);
                 ReleaseTemporaryRT(tile4);
 
@@ -93,12 +96,12 @@ namespace Kino
                 _material.SetVector("_TileMaxOffs", tileMaxOffs);
                 _material.SetInt("_TileMaxLoop", tileSize / 8);
 
-                var tile = GetTemporaryRT(source, tileSize, kVectorRTFormat);
+                var tile = GetTemporaryRT(source, tileSize, _vectorRTFormat);
                 Graphics.Blit(tile8, tile, _material, 3);
                 ReleaseTemporaryRT(tile8);
 
                 // 5th pass - NeighborMax filter
-                var neighborMax = GetTemporaryRT(source, tileSize, kVectorRTFormat);
+                var neighborMax = GetTemporaryRT(source, tileSize, _vectorRTFormat);
                 Graphics.Blit(tile, neighborMax, _material, 4);
                 ReleaseTemporaryRT(tile);
 
@@ -119,6 +122,25 @@ namespace Kino
             #region Private members
 
             Material _material;
+
+            // Texture format for storing 2D vectors.
+            RenderTextureFormat _vectorRTFormat = RenderTextureFormat.RGHalf;
+
+            // Texture format for storing packed velocity/depth.
+            RenderTextureFormat _packedRTFormat = RenderTextureFormat.ARGB2101010;
+
+            bool CheckTextureFormatSupport()
+            {
+                // RGHalf is not supported = Can't use motion vectors.
+                if (!SystemInfo.SupportsRenderTextureFormat(_vectorRTFormat))
+                    return false;
+
+                // If 2:10:10:10 isn't supported, use ARGB32 instead.
+                if (!SystemInfo.SupportsRenderTextureFormat(_packedRTFormat))
+                    _packedRTFormat = RenderTextureFormat.ARGB32;
+
+                return true;
+            }
 
             RenderTexture GetTemporaryRT(
                 Texture source, int divider, RenderTextureFormat format
