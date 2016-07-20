@@ -37,7 +37,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.75535643, g: 0.60716045, b: 0.8458912, a: 1}
+  m_IndirectSpecularColor: {r: 0.7553526, g: 0.6071594, b: 0.8458914, a: 1}
 --- !u!157 &3
 LightmapSettings:
   m_ObjectHideFlags: 0
@@ -411,10 +411,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _shutterAngle: 360
   _sampleCount: 8
-  _maxBlurRadius: 5
   _frameBlending: 0
-  _debugMode: 0
-  _shader: {fileID: 4800000, guid: 60701d53f4c638048b5e49c197d08b77, type: 3}
+  _reconstructionShader: {fileID: 4800000, guid: 60701d53f4c638048b5e49c197d08b77,
+    type: 3}
+  _frameBlendingShader: {fileID: 4800000, guid: 95caa7c3844725840aec8dad64ac258e,
+    type: 3}
 --- !u!81 &1603570669
 AudioListener:
   m_ObjectHideFlags: 0
