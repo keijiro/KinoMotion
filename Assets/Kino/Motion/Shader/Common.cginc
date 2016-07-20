@@ -58,10 +58,15 @@ half _MaxBlurRadius;
 int _LoopCount;
 
 // History buffer for frame blending
-sampler2D _History1Tex;
-sampler2D _History2Tex;
-sampler2D _History3Tex;
-sampler2D _History4Tex;
+sampler2D _History1LumaTex;
+sampler2D _History2LumaTex;
+sampler2D _History3LumaTex;
+sampler2D _History4LumaTex;
+
+sampler2D _History1ChromaTex;
+sampler2D _History2ChromaTex;
+sampler2D _History3ChromaTex;
+sampler2D _History4ChromaTex;
 
 half _History1Weight;
 half _History2Weight;

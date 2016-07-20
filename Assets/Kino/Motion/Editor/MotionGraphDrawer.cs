@@ -141,7 +141,7 @@ namespace Kino
         float BlendingWeight(float strength, float time)
         {
             if (strength > 0 || time == 0)
-                return Mathf.Exp(-time * Mathf.Lerp(80.0f, 10.0f, strength));
+                return Mathf.Exp(-time * Mathf.Lerp(80.0f, 16.0f, strength));
             else
                 return 0;
         }
