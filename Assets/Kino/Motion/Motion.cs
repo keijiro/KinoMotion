@@ -32,7 +32,7 @@ namespace Kino
         #region Public properties
 
         /// The angle of rotary shutter. The larger the angle is, the longer
-        /// the exposure time is. This value is only used in delta time mode.
+        /// the exposure time is.
         public float shutterAngle {
             get { return _shutterAngle; }
             set { _shutterAngle = value; }
