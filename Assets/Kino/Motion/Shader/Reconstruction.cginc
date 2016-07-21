@@ -152,7 +152,11 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half w_A1 = dot(w_c, v_c_n);
     half w_A2 = dot(w_c, v_max_n);
 
+#ifndef UNROLL_LOOP_COUNT
     UNITY_LOOP for (int c = 0; c < _LoopCount; c++)
+#else
+    UNITY_UNROLL for (int c = 0; c < UNROLL_LOOP_COUNT; c++)
+#endif
     {
         // Odd-numbered sample: sample along v_c.
         {

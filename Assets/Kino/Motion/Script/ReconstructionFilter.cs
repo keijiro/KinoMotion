@@ -47,6 +47,9 @@ namespace Kino
                     _material = new Material(shader);
                     _material.hideFlags = HideFlags.DontSave;
                 }
+
+                // Use loop unrolling on Adreno GPUs to avoid shader issues.
+                _unroll = SystemInfo.graphicsDeviceName.Contains("Adreno");
             }
 
             public void Release()
@@ -110,7 +113,7 @@ namespace Kino
                 _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
                 _material.SetTexture("_NeighborMaxTex", neighborMax);
                 _material.SetTexture("_VelocityTex", vbuffer);
-                Graphics.Blit(source, destination, _material, 5);
+                Graphics.Blit(source, destination, _material, _unroll ? 6 : 5);
 
                 // Cleaning up
                 ReleaseTemporaryRT(vbuffer);
@@ -122,6 +125,7 @@ namespace Kino
             #region Private members
 
             Material _material;
+            bool _unroll;
 
             // Texture format for storing 2D vectors.
             RenderTextureFormat _vectorRTFormat = RenderTextureFormat.RGHalf;
