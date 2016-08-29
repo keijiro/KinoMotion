@@ -134,6 +134,16 @@ namespace Kino
 
         #region Private Properties
 
+        // Texture format used for storing AO
+        RenderTextureFormat aoTextureFormat {
+            get {
+                if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.R8))
+                    return RenderTextureFormat.R8;
+                else
+                    return RenderTextureFormat.Default;
+            }
+        }
+
         // AO shader material
         Material aoMaterial {
             get {
@@ -194,7 +204,7 @@ namespace Kino
             var tw = targetCamera.pixelWidth;
             var th = targetCamera.pixelHeight;
             var ts = downsampling ? 2 : 1;
-            var format = RenderTextureFormat.R8;
+            var format = aoTextureFormat;
             var rwMode = RenderTextureReadWrite.Linear;
             var filter = FilterMode.Bilinear;
 
@@ -238,7 +248,6 @@ namespace Kino
                 BuiltinRenderTextureType.GBuffer0,      // Albedo, Occ
                 BuiltinRenderTextureType.CameraTarget   // Ambient
             };
-            cb.SetGlobalTexture(rtMask, rtMask);
             cb.SetRenderTarget(mrt, BuiltinRenderTextureType.CameraTarget);
             cb.DrawMesh(_quadMesh, Matrix4x4.identity, m, 0, 8);
 
@@ -251,7 +260,7 @@ namespace Kino
             var tw = source.width;
             var th = source.height;
             var ts = downsampling ? 2 : 1;
-            var format = RenderTextureFormat.R8;
+            var format = aoTextureFormat;
             var rwMode = RenderTextureReadWrite.Linear;
             var useGBuffer = occlusionSource == OcclusionSource.GBuffer;
 
@@ -262,7 +271,7 @@ namespace Kino
             );
 
             // AO estimation
-            Graphics.Blit(null, rtMask, m, (int)occlusionSource);
+            Graphics.Blit(source, rtMask, m, (int)occlusionSource);
 
             // 1st blur iteration (large kernel)
             var rtBlur = RenderTexture.GetTemporary(tw, th, 0, format, rwMode);
