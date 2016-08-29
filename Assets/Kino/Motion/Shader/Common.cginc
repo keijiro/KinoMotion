@@ -24,6 +24,11 @@
 
 #include "UnityCG.cginc"
 
+// Workaround for #827031 (PS4/PS Vita)
+#if defined(SHADER_API_PSSL)
+#define sampler2D_half sampler2D_float
+#endif
+
 // Main source texture
 sampler2D _MainTex;
 float4 _MainTex_TexelSize;

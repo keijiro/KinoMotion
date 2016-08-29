@@ -150,7 +150,7 @@ half4 frag_TileMaxV(v2f_img i) : SV_Target
 // Fragment shader: NeighborMax filter
 half4 frag_NeighborMax(v2f_img i) : SV_Target
 {
-    static const half cw = 1.01f; // center weight tweak
+    const half cw = 1.01f; // center weight tweak
 
     float4 d = _MainTex_TexelSize.xyxy * float4(1, 1, -1, 0);
 
