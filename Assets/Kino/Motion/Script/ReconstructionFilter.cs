@@ -152,7 +152,8 @@ namespace Kino
             {
                 var w = source.width / divider;
                 var h = source.height / divider;
-                var rt = RenderTexture.GetTemporary(w, h, 0, format);
+                var linear = RenderTextureReadWrite.Linear;
+                var rt = RenderTexture.GetTemporary(w, h, 0, format, linear);
                 rt.filterMode = FilterMode.Point;
                 return rt;
             }
