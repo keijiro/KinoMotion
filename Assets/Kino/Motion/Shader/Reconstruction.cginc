@@ -27,13 +27,6 @@
 // Strength of the depth filter
 static const float kDepthFilterCoeff = 15;
 
-// Safer version of vector normalization function
-half2 SafeNorm(half2 v)
-{
-    half l = max(length(v), 1e-6);
-    return v / l * (l >= 0.5);
-}
-
 // Interleaved gradient function from Jimenez 2014 http://goo.gl/eomGso
 float GradientNoise(float2 uv)
 {
@@ -50,137 +43,71 @@ float2 JitterTile(float2 uv)
     return float2(rx, ry) * _NeighborMaxTex_TexelSize.xy / 4;
 }
 
-// Cone shaped interpolation
-half Cone(half T, half l_V)
-{
-    return saturate(1.0 - T / l_V);
-}
-
-// Cylinder shaped interpolation
-half Cylinder(half T, half l_V)
-{
-    return 1.0 - smoothstep(0.95 * l_V, 1.05 * l_V, T);
-}
-
 // Depth comparison function
 half CompareDepth(half za, half zb)
 {
     return saturate(1.0 - kDepthFilterCoeff * (zb - za) / min(za, zb));
 }
 
-// Lerp and normalization
-half2 RNMix(half2 a, half2 b, half p)
-{
-    return SafeNorm(lerp(a, b, saturate(p)));
-}
-
 // Velocity sampling function
 half3 SampleVelocity(float2 uv)
 {
-    half3 v = tex2D(_VelocityTex, uv).xyz;
+    half3 v = tex2Dlod(_VelocityTex, float4(uv, 0, 0)).xyz;
     return half3((v.xy * 2 - 1) * _MaxBlurRadius, v.z);
-}
-
-// Sample weighting function
-half SampleWeight(half2 d_n, half l_v_c, half z_p, half T, float2 S_uv, half w_A)
-{
-    half3 temp = tex2Dlod(_VelocityTex, float4(S_uv, 0, 0));
-
-    half2 v_S = (temp.xy * 2 - 1) * _MaxBlurRadius;
-    half l_v_S = max(length(v_S), 0.5);
-
-    half z_S = temp.z;
-
-    half f = CompareDepth(z_p, z_S);
-    half b = CompareDepth(z_S, z_p);
-
-    half w_B = abs(dot(v_S / l_v_S, d_n));
-
-    half weight = 0.0;
-    weight += f * Cone(T, l_v_S) * w_B;
-    weight += b * Cone(T, l_v_c) * w_A;
-    weight += Cylinder(T, min(l_v_S, l_v_c)) * max(w_A, w_B) * 2;
-
-    return weight;
 }
 
 // Reconstruction fragment shader
 half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 {
-    float2 p = i.uv1 * _ScreenParams.xy;
-    float2 p_uv = i.uv1;
+    // Original source color
+    half4 c_p = tex2D(_MainTex, i.uv0);
 
-    // Nonfiltered source color;
-    half4 source = tex2D(_MainTex, i.uv0);
+    // Velocity/Depth at the center point
+    half3 vd_p = SampleVelocity(i.uv1);
+    half l_v_p = max(length(vd_p.xy), 0.5);
 
-    // Velocity vector at p.
-    half3 v_c_t = SampleVelocity(p_uv);
-    half2 v_c = v_c_t.xy;
-    half2 v_c_n = SafeNorm(v_c);
-    half l_v_c = max(length(v_c), 0.5);
-
-    // NeighborMax vector at p (with small).
-    half2 v_max = tex2D(_NeighborMaxTex, p_uv + JitterTile(p_uv)).xy;
-    half2 v_max_n = SafeNorm(v_max);
+    // NeighborMax vector at the center point
+    half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
     half l_v_max = length(v_max);
 
-    // Escape early if the NeighborMax vector is too short.
-    if (l_v_max < 0.5) return source;
+    // Escape early if the NeighborMax is small enough.
+    if (l_v_max < 0.5) return c_p;
 
-    // Linearized depth at p.
-    half z_p = v_c_t.z;
+    // Determine the sample count.
+    int sc = min(_LoopCount, l_v_max);
 
-    // A vector perpendicular to v_max.
-    half2 w_p = v_max_n.yx * float2(-1, 1);
-    if (dot(w_p, v_c) < 0.0) w_p = -w_p;
+    // Loop variables
+    half dt = 2.0 / sc;
+    half t = -1.0 + GradientNoise(i.uv0) * dt;
 
-    // Secondary sampling direction.
-    half2 w_c = RNMix(w_p, v_c_n, (l_v_c - 0.5) / 1.5);
+    half w_total = 1.0 / max(1, l_v_p);
+    half3 acc = c_p.rgb * w_total;
 
-    // The center sample.
-    half sampleCount = _LoopCount * 2.0f;
-    half totalWeight = sampleCount / (l_v_c * 40);
-    half3 result = source.rgb * totalWeight;
-
-    // Start from t=-1 + small jitter.
-    // The width of jitter is equivalent to 4 sample steps.
-    half sampleJitter = 4.0 * 2 / (sampleCount + 4);
-    half t = -1.0 + GradientNoise(p_uv) * sampleJitter;
-    half dt = (2.0 - sampleJitter) / sampleCount;
-
-    // Precalculate the w_A parameters.
-    half w_A1 = dot(w_c, v_c_n);
-    half w_A2 = dot(w_c, v_max_n);
-
-#ifndef UNROLL_LOOP_COUNT
-    UNITY_LOOP for (int c = 0; c < _LoopCount; c++)
-#else
-    UNITY_UNROLL for (int c = 0; c < UNROLL_LOOP_COUNT; c++)
-#endif
+    UNITY_LOOP for (int lp = 0; lp < sc; lp++)
     {
-        // Odd-numbered sample: sample along v_c.
-        {
-            float2 S_uv0 = i.uv0 + t * v_c * _MainTex_TexelSize.xy;
-            float2 S_uv1 = i.uv1 + t * v_c * _VelocityTex_TexelSize.xy;
-            half weight = SampleWeight(v_c_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A1);
+        // UVs for this sample point
+        float2 uv0 = i.uv0 + v_max * t * _MainTex_TexelSize.xy;
+        float2 uv1 = i.uv1 + v_max * t * _VelocityTex_TexelSize.xy;
 
-            result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
-            totalWeight += weight;
+        // Velocity/Depth at this point
+        half3 vd = SampleVelocity(uv1);
+        half l_v = length(vd.xy);
 
-            t += dt;
-        }
-        // Even-numbered sample: sample along v_max.
-        {
-            float2 S_uv0 = i.uv0 + t * v_max * _MainTex_TexelSize.xy;
-            float2 S_uv1 = i.uv1 + t * v_max * _VelocityTex_TexelSize.xy;
-            half weight = SampleWeight(v_max_n, l_v_c, z_p, abs(t * l_v_max), S_uv1, w_A2);
+        // Distance to this point
+        half l_t = abs(l_v_max * t);
 
-            result += tex2Dlod(_MainTex, float4(S_uv0, 0, 0)).rgb * weight;
-            totalWeight += weight;
+        // Calculate the sample weight.
+        half w1 = (l_v   > l_t) * CompareDepth(vd_p.z, vd.z) / max(1, l_v);
+        half w2 = (l_v_p > l_t) * CompareDepth(vd.z, vd_p.z) / max(1, l_v_p);
+        half w = max(w1, w2);
 
-            t += dt;
-        }
+        // Color accumulation
+        acc += tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb * w;
+        w_total += w;
+
+        // Advance to the next sample.
+        t += dt;
     }
 
-    return half4(result / totalWeight, source.a);
+    return half4(acc / w_total, c_p.a);
 }
