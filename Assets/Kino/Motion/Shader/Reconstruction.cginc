@@ -71,7 +71,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half l_v_max = length(v_max);
 
     // Escape early if the NeighborMax is small enough.
-    if (l_v_max < 0.5) return c_p;
+    if (l_v_max < 1) return c_p;
 
     // Determine the sample count.
     int sc = min(_LoopCount, l_v_max);
@@ -80,7 +80,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half dt = 2.0 / sc;
     half t = -1.0 + GradientNoise(i.uv0) * dt;
 
-    half w_total = 1.0 / max(1, l_v_p);
+    half w_total = 1.0 / (sc * max(1, l_v_p));
     half3 acc = c_p.rgb * w_total;
 
     UNITY_LOOP for (int lp = 0; lp < sc; lp++)
