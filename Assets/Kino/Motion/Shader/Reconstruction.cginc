@@ -65,6 +65,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     // Velocity/Depth at the center point
     half3 vd_p = SampleVelocity(i.uv1);
     half l_v_p = max(length(vd_p.xy), 0.5);
+    half rcp_l_v_p = 1 / max(1, l_v_p);
 
     // NeighborMax vector at the center point
     half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
@@ -80,8 +81,9 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half dt = 2.0 / sc;
     half t = -1.0 + GradientNoise(i.uv0) * dt;
 
-    half w_total = 1.0 / (sc * max(1, l_v_p));
-    half3 acc = c_p.rgb * w_total;
+    // Start accumulation.
+    // center weight = 1 / (sample_count * max(1, |V_p|))
+    half4 acc = half4(c_p.rgb, 1) * 0.5 * dt * rcp_l_v_p;
 
     UNITY_LOOP for (int lp = 0; lp < sc; lp++)
     {
@@ -98,16 +100,15 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 
         // Calculate the sample weight.
         half w1 = (l_v   > l_t) * CompareDepth(vd_p.z, vd.z) / max(1, l_v);
-        half w2 = (l_v_p > l_t) * CompareDepth(vd.z, vd_p.z) / max(1, l_v_p);
-        half w = max(w1, w2);
+        half w2 = (l_v_p > l_t) * CompareDepth(vd.z, vd_p.z) * rcp_l_v_p;
 
         // Color accumulation
-        acc += tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb * w;
-        w_total += w;
+        half3 c = tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb;
+        acc += half4(c, 1) * max(w1, w2);
 
         // Advance to the next sample.
         t += dt;
     }
 
-    return half4(acc / w_total, c_p.a);
+    return half4(acc.rgb / acc.a, c_p.a);
 }
