@@ -77,8 +77,7 @@ namespace Kino
                 var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
                 // 1st pass - Velocity/depth packing
-                // Motion vectors are scaled by an empirical factor of 1.45.
-                var velocityScale = shutterAngle / 360 * 1.45f;
+                var velocityScale = shutterAngle / 360;
                 _material.SetFloat("_VelocityScale", velocityScale);
                 _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
                 _material.SetFloat("_RcpMaxBlurRadius", 1.0f / maxBlurPixels);
