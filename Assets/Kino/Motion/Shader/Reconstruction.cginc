@@ -70,6 +70,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     // NeighborMax vector at the center point
     half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
     half l_v_max = length(v_max);
+    half rcp_l_v_max = 1 / l_v_max;
 
     // Escape early if the NeighborMax is small enough.
     if (l_v_max < 1) return c_p;
@@ -80,16 +81,27 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     // Loop variables
     half dt = 2.0 / sc;
     half t = -1.0 + GradientNoise(i.uv0) * dt;
+    bool swap = false;
 
     // Start accumulation.
     // center weight = 1 / (sample_count * max(1, |V_p|))
     half4 acc = half4(c_p.rgb, 1) * 0.5 * dt * rcp_l_v_p;
 
+    // Use V_p as a secondary sampling direction except when it's too small
+    // compared to V_max. The length of this vector should equal to V_max.
+    float2 v_alt = (l_v_p > l_v_max * 0.5) ? vd_p.xy * rcp_l_v_p * l_v_max : v_max;
+
+    // Sampling direction vectors. Packed in [(x, y), normalized(x, y)]
+    float4 v1 = float4(v_max, v_max * rcp_l_v_max);
+    float4 v2 = float4(v_alt, v_alt * rcp_l_v_max);
+
     UNITY_LOOP for (int lp = 0; lp < sc; lp++)
     {
+        float4 v_s = swap ? v2 : v1;
+
         // UVs for this sample point
-        float2 uv0 = i.uv0 + v_max * t * _MainTex_TexelSize.xy;
-        float2 uv1 = i.uv1 + v_max * t * _VelocityTex_TexelSize.xy;
+        float2 uv0 = i.uv0 + v_s.xy * t * _MainTex_TexelSize.xy;
+        float2 uv1 = i.uv1 + v_s.xy * t * _VelocityTex_TexelSize.xy;
 
         // Velocity/Depth at this point
         half3 vd = SampleVelocity(uv1);
@@ -101,10 +113,14 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
         // Calculate the sample weight.
         half w1 = (l_v   > l_t) * CompareDepth(vd_p.z, vd.z) / max(1, l_v);
         half w2 = (l_v_p > l_t) * CompareDepth(vd.z, vd_p.z) * rcp_l_v_p;
+        half wd = abs(dot(v_s.zw, vd.xy / l_v));
 
         // Color accumulation
         half3 c = tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb;
-        acc += half4(c, 1) * max(w1, w2);
+        acc += half4(c, 1) * max(w1, w2) * wd;
+
+        // Swap velocity vectors.
+        swap = !swap;
 
         // Advance to the next sample.
         t += dt;
