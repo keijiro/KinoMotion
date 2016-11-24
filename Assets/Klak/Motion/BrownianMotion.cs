@@ -104,6 +104,8 @@ namespace Klak.Motion
 
         #region Private Members
 
+        static int _seed = 0;
+
         const float _fbmNorm = 1 / 0.75f;
 
         Vector3 _initialPosition;
@@ -116,9 +118,10 @@ namespace Klak.Motion
 
         void Start()
         {
+            var hash = new XXHash(_seed++);
             _time = new float[6];
             for (var i = 0; i < 6; i++)
-                _time[i] = Random.Range(-10000.0f, 0.0f);
+                _time[i] = hash.Range(-10000.0f, 0.0f, i);
         }
 
         void OnEnable()
