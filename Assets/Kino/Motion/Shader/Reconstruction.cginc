@@ -24,9 +24,6 @@
 
 #include "Common.cginc"
 
-// Strength of the depth filter
-static const float kDepthFilterCoeff = 15;
-
 // Interleaved gradient function from Jimenez 2014 http://goo.gl/eomGso
 float GradientNoise(float2 uv)
 {
@@ -41,12 +38,6 @@ float2 JitterTile(float2 uv)
     float rx, ry;
     sincos(GradientNoise(uv + float2(2, 0)) * UNITY_PI * 2, ry, rx);
     return float2(rx, ry) * _NeighborMaxTex_TexelSize.xy / 4;
-}
-
-// Depth comparison function
-half CompareDepth(half za, half zb)
-{
-    return saturate(1.0 - kDepthFilterCoeff * (zb - za) / min(za, zb));
 }
 
 // Velocity sampling function
@@ -66,6 +57,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half3 vd_p = SampleVelocity(i.uv1);
     half l_v_p = max(length(vd_p.xy), 0.5);
     half rcp_l_v_p = 1 / max(1, l_v_p);
+    half rcp_d_p = 1 / vd_p.z;
 
     // NeighborMax vector at the center point
     half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
@@ -76,7 +68,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     if (l_v_max < 1) return c_p;
 
     // Determine the sample count.
-    int sc = min(_LoopCount, l_v_max);
+    float sc = floor(min(_LoopCount, l_v_max));
 
     // Loop variables
     half dt = 2.0 / sc;
@@ -95,7 +87,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     float4 v1 = float4(v_max, v_max * rcp_l_v_max);
     float4 v2 = float4(v_alt, v_alt * rcp_l_v_max);
 
-    UNITY_LOOP for (int lp = 0; lp < sc; lp++)
+    UNITY_LOOP for (float lp = 0; lp < sc; lp += 1)
     {
         float4 v_s = swap ? v2 : v1;
 
@@ -110,9 +102,20 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
         // Distance to this point
         half l_t = abs(l_v_max * t);
 
-        // Calculate the sample weight.
-        half w1 = (l_v   > l_t) * CompareDepth(vd_p.z, vd.z) / max(1, l_v);
-        half w2 = (l_v_p > l_t) * CompareDepth(vd.z, vd_p.z) * rcp_l_v_p;
+        // Sample weight: Distance check
+        half w1 = saturate((l_v   - l_t) * 0.5);
+        half w2 = saturate((l_v_p - l_t) * 0.5);
+
+        // Sample weight: Depth comparison
+        half fg = (vd.z - vd_p.z) * 16 * rcp_d_p;
+        w1 *= saturate(1 - fg);
+        w2 *= saturate(1 + fg);
+
+        // Sample weight: Spreading out by velocity
+        w1 /= max(1, l_v);
+        w2 *= rcp_l_v_p;
+
+        // Sample weight: Directional influence
         half wd = abs(dot(v_s.zw, vd.xy / l_v));
 
         // Color accumulation
