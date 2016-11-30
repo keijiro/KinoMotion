@@ -97,17 +97,5 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             #pragma target 3.0
             ENDCG
         }
-        // Pass 6: Reconstruction filter (loop unrolled)
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #define UNROLL_LOOP_COUNT 2
-            #include "Reconstruction.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_Reconstruction
-            #pragma target 3.0
-            ENDCG
-        }
     }
 }
