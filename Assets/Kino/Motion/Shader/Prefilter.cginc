@@ -50,7 +50,7 @@ half4 frag_VelocitySetup(v2f_img i) : SV_Target
 }
 
 // Fragment shader: TileMax filter (2 pixel width with normalization)
-half4 frag_TileMax4(v2f_img i) : SV_Target
+half4 frag_TileMax1(v2f_img i) : SV_Target
 {
     float4 d = _MainTex_TexelSize.xyxy * float4(-0.5, -0.5, 0.5, 0.5);
 
