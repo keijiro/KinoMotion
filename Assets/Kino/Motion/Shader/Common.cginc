@@ -61,7 +61,7 @@ half _MaxBlurRadius;
 float _RcpMaxBlurRadius;
 
 // Filter parameters/coefficients
-int _LoopCount;
+float _LoopCount;
 
 // History buffer for frame blending
 sampler2D _History1LumaTex;

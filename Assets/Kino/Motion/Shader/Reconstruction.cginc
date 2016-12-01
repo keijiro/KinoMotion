@@ -56,7 +56,6 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     // Velocity/Depth at the center point
     half3 vd_p = SampleVelocity(i.uv1);
     half l_v_p = max(length(vd_p.xy), 0.5);
-    half rcp_l_v_p = 1 / max(1, l_v_p);
     half rcp_d_p = 1 / vd_p.z;
 
     // NeighborMax vector at the center point
@@ -65,69 +64,69 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     half rcp_l_v_max = 1 / l_v_max;
 
     // Escape early if the NeighborMax is small enough.
-    if (l_v_max < 1) return c_p;
-
-    // Determine the sample count.
-    float sc = floor(min(_LoopCount, l_v_max));
-
-    // Loop variables
-    half dt = 2.0 / sc;
-    half t = -1.0 + GradientNoise(i.uv0) * dt;
-    bool swap = false;
-
-    // Start accumulation.
-    // center weight = 1 / (sample_count * max(1, |V_p|))
-    half4 acc = half4(c_p.rgb, 1) * 0.5 * dt * rcp_l_v_p;
+    if (l_v_max < 2) return c_p;
 
     // Use V_p as a secondary sampling direction except when it's too small
     // compared to V_max. The length of this vector should equal to V_max.
-    float2 v_alt = (l_v_p > l_v_max * 0.5) ? vd_p.xy * rcp_l_v_p * l_v_max : v_max;
+    float2 v_alt = (l_v_p * 2 > l_v_max) ? vd_p.xy / l_v_p * l_v_max : v_max;
 
     // Sampling direction vectors. Packed in [(x, y), normalized(x, y)]
     float4 v1 = float4(v_max, v_max * rcp_l_v_max);
     float4 v2 = float4(v_alt, v_alt * rcp_l_v_max);
 
-    UNITY_LOOP for (float lp = 0; lp < sc; lp += 1)
+    // Determine the sample count.
+    half sc = floor(min(_LoopCount, l_v_max / 2));
+
+    // Loop variables
+    half dt = 1 / sc;
+    half t = 1 - dt / 2;
+    half t_offs = (GradientNoise(i.uv0) - 0.5) * dt;
+    bool swap = false;
+
+    // BG velocity (used for tracking the maximum velocity in the BG layer)
+    float l_v_bg = max(l_v_p, 1);
+
+    // Color accumlation
+    half4 acc = 0;
+
+    UNITY_LOOP while (t > dt / 4)
     {
-        float4 v_s = swap ? v2 : v1;
+        float4 v_s = v1;
+        half t2 = (swap ? -t : t) + t_offs;
+
+        // Distance to this point
+        half l_t = l_v_max * abs(t2);
 
         // UVs for this sample point
-        float2 uv0 = i.uv0 + v_s.xy * t * _MainTex_TexelSize.xy;
-        float2 uv1 = i.uv1 + v_s.xy * t * _VelocityTex_TexelSize.xy;
+        float2 uv0 = i.uv0 + v_s.xy * t2 * _MainTex_TexelSize.xy;
+        float2 uv1 = i.uv1 + v_s.xy * t2 * _VelocityTex_TexelSize.xy;
 
         // Velocity/Depth at this point
         half3 vd = SampleVelocity(uv1);
         half l_v = length(vd.xy);
 
-        // Distance to this point
-        half l_t = abs(l_v_max * t);
+        // BG/FG separation
+        half fg = saturate((vd_p.z - vd.z) * 20 * rcp_d_p);
+        half bg = 1 - fg;
 
-        // Sample weight: Distance check
-        half w1 = saturate((l_v   - l_t) * 0.5);
-        half w2 = saturate((l_v_p - l_t) * 0.5);
+        // Update the BG velocity.
+        l_v_bg = max(l_v_bg, min(l_v, l_v_p) * bg);
 
-        // Sample weight: Depth comparison
-        half fg = (vd.z - vd_p.z) * 16 * rcp_d_p;
-        w1 *= saturate(1 - fg);
-        w2 *= saturate(1 + fg);
-
-        // Sample weight: Spreading out by velocity
-        w1 /= max(1, l_v);
-        w2 *= rcp_l_v_p;
-
-        // Sample weight: Directional influence
-        half wd = abs(dot(v_s.zw, vd.xy / l_v));
+        // Distance test and sample weighting
+        fg *= saturate(l_v - l_t) / l_v;
+        bg *= saturate(l_v_bg - l_t) / l_v_bg;
 
         // Color accumulation
-        half3 c = tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb;
-        acc += half4(c, 1) * max(w1, w2) * wd;
-
-        // Swap velocity vectors.
-        swap = !swap;
+        half4 c = half4(tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb, 1);
+        acc += c * (fg + bg) * (1.1 - t); // triangular window
 
         // Advance to the next sample.
-        t += dt;
+        t -= dt * swap;
+        swap = !swap;
     }
+
+    // Add the center sample.
+    acc += half4(c_p.rgb, 1) / (l_v_bg * sc * 2);
 
     return half4(acc.rgb / acc.a, c_p.a);
 }
