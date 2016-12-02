@@ -24,6 +24,12 @@
 
 #include "Common.cginc"
 
+// Returns true or false with a given interval.
+bool Interval(float phase, float interval)
+{
+    return frac(phase / interval) > 0.499;
+}
+
 // Interleaved gradient function from Jimenez 2014 http://goo.gl/eomGso
 float GradientNoise(float2 uv)
 {
@@ -50,40 +56,37 @@ half3 SampleVelocity(float2 uv)
 // Reconstruction fragment shader
 half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 {
-    // Original source color
-    half4 c_p = tex2D(_MainTex, i.uv0);
+    // Color sample at the center point
+    const half4 c_p = tex2D(_MainTex, i.uv0);
 
-    // Velocity/Depth at the center point
-    half3 vd_p = SampleVelocity(i.uv1);
-    half l_v_p = max(length(vd_p.xy), 0.5);
-    half rcp_d_p = 1 / vd_p.z;
+    // Velocity/Depth sample at the center point
+    const half3 vd_p = SampleVelocity(i.uv1);
+    const half l_v_p = max(length(vd_p.xy), 0.5);
+    const half rcp_d_p = 1 / vd_p.z;
 
-    // NeighborMax vector at the center point
-    half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
-    half l_v_max = length(v_max);
-    half rcp_l_v_max = 1 / l_v_max;
+    // NeighborMax vector sample at the center point
+    const half2 v_max = tex2D(_NeighborMaxTex, i.uv1 + JitterTile(i.uv1)).xy;
+    const half l_v_max = length(v_max);
+    const half rcp_l_v_max = 1 / l_v_max;
 
-    // Escape early if the NeighborMax is small enough.
+    // Escape early if the NeighborMax vector is small enough.
     if (l_v_max < 2) return c_p;
 
     // Use V_p as a secondary sampling direction except when it's too small
-    // compared to V_max. The length of this vector should equal to V_max.
-    float2 v_alt = (l_v_p * 2 > l_v_max) ? vd_p.xy / l_v_p * l_v_max : v_max;
-
-    // Sampling direction vectors. Packed in [(x, y), normalized(x, y)]
-    float4 v1 = float4(v_max, v_max * rcp_l_v_max);
-    float4 v2 = float4(v_alt, v_alt * rcp_l_v_max);
+    // compared to V_max. This vector is rescaled to be the length of V_max.
+    const float2 v_alt = (l_v_p * 2 > l_v_max) ? vd_p.xy * (l_v_max / l_v_p) : v_max;
 
     // Determine the sample count.
-    half sc = floor(min(_LoopCount, l_v_max / 2));
+    const half sc = floor(min(_LoopCount, l_v_max / 2));
 
-    // Loop variables
-    half dt = 1 / sc;
+    // Loop variables (starts from the outermost sample)
+    const half dt = 1 / sc;
+    const half t_offs = (GradientNoise(i.uv0) - 0.5) * dt;
     half t = 1 - dt / 2;
-    half t_offs = (GradientNoise(i.uv0) - 0.5) * dt;
-    bool swap = false;
+    half count = 0;
 
-    // BG velocity (used for tracking the maximum velocity in the BG layer)
+    // Background velocity
+    // This is used for tracking the maximum velocity in the background layer.
     float l_v_bg = max(l_v_p, 1);
 
     // Color accumlation
@@ -91,42 +94,48 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 
     UNITY_LOOP while (t > dt / 4)
     {
-        float4 v_s = v1;
-        half t2 = (swap ? -t : t) + t_offs;
+        // Sampling direction (switched per every two samples)
+        const half2 v_s = Interval(count, 4) ? v_alt : v_max;
 
-        // Distance to this point
-        half l_t = l_v_max * abs(t2);
+        // Sample position (inverted per every sample)
+        const half t_s = (Interval(count, 2) ? -t : t) + t_offs;
 
-        // UVs for this sample point
-        float2 uv0 = i.uv0 + v_s.xy * t2 * _MainTex_TexelSize.xy;
-        float2 uv1 = i.uv1 + v_s.xy * t2 * _VelocityTex_TexelSize.xy;
+        // Distance to the sample position
+        const half l_t = l_v_max * abs(t_s);
 
-        // Velocity/Depth at this point
-        half3 vd = SampleVelocity(uv1);
-        half l_v = length(vd.xy);
+        // UVs for the sample position
+        const float2 uv0 = i.uv0 + v_s * t_s * _MainTex_TexelSize.xy;
+        const float2 uv1 = i.uv1 + v_s * t_s * _VelocityTex_TexelSize.xy;
 
-        // BG/FG separation
-        half fg = saturate((vd_p.z - vd.z) * 20 * rcp_d_p);
-        half bg = 1 - fg;
+        // Color sample
+        const half3 c = tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb;
 
-        // Update the BG velocity.
-        l_v_bg = max(l_v_bg, lerp(min(l_v, l_v_p), l_v, fg));
+        // Velocity/Depth sample
+        const half3 vd = SampleVelocity(uv1);
 
-        // Distance test and sample weighting
-        fg *= saturate(l_v - l_t) / l_v;
-        bg *= saturate(l_v_bg - l_t) / l_v_bg;
+        // Background/Foreground separation
+        const half fg = saturate((vd_p.z - vd.z) * 20 * rcp_d_p);
+
+        // Length of the velocity vector
+        const float l_v = lerp(l_v_bg, length(vd.xy), fg);
+
+        // Sample weight
+        // (Distance test) * (Spreading out by motion) * (Triangular window)
+        const half w = saturate(l_v - l_t) / l_v * (1.2 - t);
 
         // Color accumulation
-        half4 c = half4(tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb, 1);
-        acc += c * (fg + bg) * (1.2 - t); // triangular window
+        acc += half4(c, 1) * w;
+
+        // Update the background velocity.
+        l_v_bg = max(l_v_bg, l_v);
 
         // Advance to the next sample.
-        t -= dt * swap;
-        swap = !swap;
+        t = Interval(count, 2) ? t - dt : t;
+        count += 1;
     }
 
     // Add the center sample.
-    acc += half4(c_p.rgb, 1) * 1.2 / (l_v_bg * sc * 2);
+    acc += half4(c_p.rgb, 1) * (1.2 / (l_v_bg * sc * 2));
 
     return half4(acc.rgb / acc.a, c_p.a);
 }
