@@ -42,14 +42,14 @@ Shader "Hidden/Kino/Motion/Reconstruction"
             #pragma target 3.0
             ENDCG
         }
-        // Pass 1: TileMax filter (4 pixels width with normalization)
+        // Pass 1: TileMax filter (2 pixels width with normalization)
         Pass
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
             #include "Prefilter.cginc"
             #pragma vertex vert_img
-            #pragma fragment frag_TileMax4
+            #pragma fragment frag_TileMax1
             #pragma target 3.0
             ENDCG
         }
@@ -91,18 +91,6 @@ Shader "Hidden/Kino/Motion/Reconstruction"
         {
             ZTest Always Cull Off ZWrite Off
             CGPROGRAM
-            #include "Reconstruction.cginc"
-            #pragma vertex vert_Multitex
-            #pragma fragment frag_Reconstruction
-            #pragma target 3.0
-            ENDCG
-        }
-        // Pass 6: Reconstruction filter (loop unrolled)
-        Pass
-        {
-            ZTest Always Cull Off ZWrite Off
-            CGPROGRAM
-            #define UNROLL_LOOP_COUNT 2
             #include "Reconstruction.cginc"
             #pragma vertex vert_Multitex
             #pragma fragment frag_Reconstruction

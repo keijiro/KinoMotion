@@ -47,9 +47,6 @@ namespace Kino
                     _material = new Material(shader);
                     _material.hideFlags = HideFlags.DontSave;
                 }
-
-                // Use loop unrolling on Adreno GPUs to avoid shader issues.
-                _unroll = SystemInfo.graphicsDeviceName.Contains("Adreno");
             }
 
             public void Release()
@@ -77,24 +74,29 @@ namespace Kino
                 var tileSize = ((maxBlurPixels - 1) / 8 + 1) * 8;
 
                 // 1st pass - Velocity/depth packing
-                // Motion vectors are scaled by an empirical factor of 1.45.
-                var velocityScale = shutterAngle / 360 * 1.45f;
+                var velocityScale = shutterAngle / 360;
                 _material.SetFloat("_VelocityScale", velocityScale);
                 _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
+                _material.SetFloat("_RcpMaxBlurRadius", 1.0f / maxBlurPixels);
 
                 var vbuffer = GetTemporaryRT(source, 1, _packedRTFormat);
                 Graphics.Blit(null, vbuffer, _material, 0);
 
-                // 2nd pass - 1/4 TileMax filter
-                var tile4 = GetTemporaryRT(source, 4, _vectorRTFormat);
-                Graphics.Blit(vbuffer, tile4, _material, 1);
+                // 2nd pass - 1/2 TileMax filter
+                var tile2 = GetTemporaryRT(source, 2, _vectorRTFormat);
+                Graphics.Blit(vbuffer, tile2, _material, 1);
 
                 // 3rd pass - 1/2 TileMax filter
+                var tile4 = GetTemporaryRT(source, 4, _vectorRTFormat);
+                Graphics.Blit(tile2, tile4, _material, 2);
+                ReleaseTemporaryRT(tile2);
+
+                // 4th pass - 1/2 TileMax filter
                 var tile8 = GetTemporaryRT(source, 8, _vectorRTFormat);
                 Graphics.Blit(tile4, tile8, _material, 2);
                 ReleaseTemporaryRT(tile4);
 
-                // 4th pass - Last TileMax filter (reduce to tileSize)
+                // 5th pass - Last TileMax filter (reduce to tileSize)
                 var tileMaxOffs = Vector2.one * (tileSize / 8.0f - 1) * -0.5f;
                 _material.SetVector("_TileMaxOffs", tileMaxOffs);
                 _material.SetInt("_TileMaxLoop", tileSize / 8);
@@ -103,17 +105,16 @@ namespace Kino
                 Graphics.Blit(tile8, tile, _material, 3);
                 ReleaseTemporaryRT(tile8);
 
-                // 5th pass - NeighborMax filter
+                // 6th pass - NeighborMax filter
                 var neighborMax = GetTemporaryRT(source, tileSize, _vectorRTFormat);
                 Graphics.Blit(tile, neighborMax, _material, 4);
                 ReleaseTemporaryRT(tile);
 
-                // 6th pass - Reconstruction pass
-                _material.SetInt("_LoopCount", Mathf.Clamp(sampleCount / 2, 1, 64));
-                _material.SetFloat("_MaxBlurRadius", maxBlurPixels);
+                // 7th pass - Reconstruction pass
+                _material.SetFloat("_LoopCount", Mathf.Clamp(sampleCount, 2, 64) / 2);
                 _material.SetTexture("_NeighborMaxTex", neighborMax);
                 _material.SetTexture("_VelocityTex", vbuffer);
-                Graphics.Blit(source, destination, _material, _unroll ? 6 : 5);
+                Graphics.Blit(source, destination, _material, 5);
 
                 // Cleaning up
                 ReleaseTemporaryRT(vbuffer);
@@ -125,7 +126,6 @@ namespace Kino
             #region Private members
 
             Material _material;
-            bool _unroll;
 
             // Texture format for storing 2D vectors.
             RenderTextureFormat _vectorRTFormat = RenderTextureFormat.RGHalf;
