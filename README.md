@@ -2,9 +2,7 @@ Kino/Motion
 ===========
 
 *Motion* is a post-processing effect that simulates motion blur caused by
-object/camera movement. It's based on the paper "[A Fast and Stable
-Feature-Aware Motion Blur Filter][Guertin2014]" written by Jean-Philippe
-Guertin et al.
+object/camera movement.
 
 ![Gif][Gif1]
 ![Gif][Gif2]
@@ -44,7 +42,6 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-[Guertin2014]: http://graphics.cs.williams.edu/papers/MotionBlurHPG14/
 [Gif1]: https://66.media.tumblr.com/7bd939ad9c9c66a4d5191ba7a5d1391a/tumblr_o7h7la8h6Q1qio469o1_400.gif
 [Gif2]: https://67.media.tumblr.com/9d906d5032d9d7fb5360b08a1a57aea9/tumblr_o7kgh97DKO1qio469o1_400.gif
 [Kino]: https://github.com/search?q=kino+user%3Akeijiro&type=Repositories
