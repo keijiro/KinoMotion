@@ -110,7 +110,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
         half bg = 1 - fg;
 
         // Update the BG velocity.
-        l_v_bg = max(l_v_bg, min(l_v, l_v_p) * bg);
+        l_v_bg = max(l_v_bg, lerp(min(l_v, l_v_p), l_v, fg));
 
         // Distance test and sample weighting
         fg *= saturate(l_v - l_t) / l_v;
@@ -118,7 +118,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 
         // Color accumulation
         half4 c = half4(tex2Dlod(_MainTex, float4(uv0, 0, 0)).rgb, 1);
-        acc += c * (fg + bg) * (1.1 - t); // triangular window
+        acc += c * (fg + bg) * (1.2 - t); // triangular window
 
         // Advance to the next sample.
         t -= dt * swap;
@@ -126,7 +126,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
     }
 
     // Add the center sample.
-    acc += half4(c_p.rgb, 1) / (l_v_bg * sc * 2);
+    acc += half4(c_p.rgb, 1) * 1.2 / (l_v_bg * sc * 2);
 
     return half4(acc.rgb / acc.a, c_p.a);
 }
