@@ -25,7 +25,7 @@
 #include "Common.cginc"
 
 // Returns true or false with a given interval.
-bool Interval(float phase, float interval)
+bool Interval(half phase, half interval)
 {
     return frac(phase / interval) > 0.499;
 }
@@ -74,7 +74,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 
     // Use V_p as a secondary sampling direction except when it's too small
     // compared to V_max. This vector is rescaled to be the length of V_max.
-    const float2 v_alt = (l_v_p * 2 > l_v_max) ? vd_p.xy * (l_v_max / l_v_p) : v_max;
+    const half2 v_alt = (l_v_p * 2 > l_v_max) ? vd_p.xy * (l_v_max / l_v_p) : v_max;
 
     // Determine the sample count.
     const half sc = floor(min(_LoopCount, l_v_max / 2));
@@ -87,7 +87,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
 
     // Background velocity
     // This is used for tracking the maximum velocity in the background layer.
-    float l_v_bg = max(l_v_p, 1);
+    half l_v_bg = max(l_v_p, 1);
 
     // Color accumlation
     half4 acc = 0;
@@ -117,7 +117,7 @@ half4 frag_Reconstruction(v2f_multitex i) : SV_Target
         const half fg = saturate((vd_p.z - vd.z) * 20 * rcp_d_p);
 
         // Length of the velocity vector
-        const float l_v = lerp(l_v_bg, length(vd.xy), fg);
+        const half l_v = lerp(l_v_bg, length(vd.xy), fg);
 
         // Sample weight
         // (Distance test) * (Spreading out by motion) * (Triangular window)

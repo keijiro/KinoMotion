@@ -58,10 +58,10 @@ float2 _TileMaxOffs;
 
 // Maximum blur radius (in pixels)
 half _MaxBlurRadius;
-float _RcpMaxBlurRadius;
+half _RcpMaxBlurRadius;
 
 // Filter parameters/coefficients
-float _LoopCount;
+half _LoopCount;
 
 // History buffer for frame blending
 sampler2D _History1LumaTex;
