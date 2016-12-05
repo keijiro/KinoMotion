@@ -58,7 +58,7 @@ float2 _TileMaxOffs;
 
 // Maximum blur radius (in pixels)
 half _MaxBlurRadius;
-half _RcpMaxBlurRadius;
+float _RcpMaxBlurRadius;
 
 // Filter parameters/coefficients
 half _LoopCount;
