@@ -42,7 +42,7 @@ COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-[Gif1]: https://66.media.tumblr.com/7bd939ad9c9c66a4d5191ba7a5d1391a/tumblr_o7h7la8h6Q1qio469o1_400.gif
-[Gif2]: https://67.media.tumblr.com/9d906d5032d9d7fb5360b08a1a57aea9/tumblr_o7kgh97DKO1qio469o1_400.gif
+[Gif1]: https://i.imgur.com/UkJvWnc.gif
+[Gif2]: https://i.imgur.com/tJioLuY.gif
 [Kino]: https://github.com/search?q=kino+user%3Akeijiro&type=Repositories
 [MotionVectors]: http://docs.unity3d.com/540/Documentation/ScriptReference/DepthTextureMode.MotionVectors.html
