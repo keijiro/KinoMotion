@@ -17,7 +17,7 @@ Rendering motion vector texture requires the RGHalf texture format. It's
 supported on most of the desktop/console platform, but rarely supported on the
 mobile devices.
 
-[Motion vector texture]: http://docs.unity3d.com/540/Documentation/ScriptReference/DepthTextureMode.MotionVectors.html
+[Motion vector texture]: http://docs.unity3d.com/ScriptReference/DepthTextureMode.MotionVectors.html
 
 Installation
 ------------
