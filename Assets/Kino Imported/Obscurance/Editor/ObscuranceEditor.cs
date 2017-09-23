@@ -1,5 +1,5 @@
 //
-// Kino/Obscurance - SSAO (screen-space ambient obscurance) effect for Unity
+// Kino/Obscurance - Screen space ambient obscurance image effect
 //
 // Copyright (C) 2016 Keijiro Takahashi
 //
@@ -75,7 +75,7 @@ namespace Kino
             EditorGUILayout.PropertyField(_sampleCount);
 
             if (_sampleCount.hasMultipleDifferentValues ||
-                _sampleCount.enumValueIndex == (int)Obscurance.SampleCount.Variable)
+                _sampleCount.enumValueIndex == (int)Obscurance.SampleCount.Custom)
             {
                 EditorGUI.indentLevel++;
                 EditorGUILayout.PropertyField(_sampleCountValue, _textValue);
@@ -95,7 +95,10 @@ namespace Kino
                 if (_ambientOnly.boolValue != obscurance.ambientOnly)
                     EditorGUILayout.HelpBox(_textNoAmbientOnly, MessageType.Warning);
 
-            #if UNITY_5_4_OR_NEWER
+            #if UNITY_5_5_OR_NEWER
+            if (_ambientOnly.boolValue && PlayerSettings.stereoRenderingPath == StereoRenderingPath.SinglePass)
+                EditorGUILayout.HelpBox(_textSinglePassStereo, MessageType.Warning);
+            #elif UNITY_5_4_OR_NEWER
             if (_ambientOnly.boolValue && PlayerSettings.singlePassStereoRendering)
                 EditorGUILayout.HelpBox(_textSinglePassStereo, MessageType.Warning);
             #endif

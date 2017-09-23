@@ -1,5 +1,5 @@
 //
-// Kino/Obscurance - SSAO (screen-space ambient obscurance) effect for Unity
+// Kino/Obscurance - Screen space ambient obscurance image effect
 //
 // Copyright (C) 2016 Keijiro Takahashi
 //
@@ -59,13 +59,13 @@ namespace Kino
             set { _sampleCount = value; }
         }
 
-        public enum SampleCount { Lowest, Low, Medium, High, Variable }
+        public enum SampleCount { Lowest, Low, Medium, High, Custom }
 
         [SerializeField, Tooltip(
             "Number of sample points, which affects quality and performance.")]
         SampleCount _sampleCount = SampleCount.Medium;
 
-        /// Determines the sample count when SampleCount.Variable is used.
+        /// Determines the sample count when SampleCount.Custom is used.
         /// In other cases, it returns the preset value of the current setting.
         public int sampleCountValue {
             get {
@@ -120,8 +120,13 @@ namespace Kino
         /// and HDR rendering.
         public bool ambientOnly {
             get {
+            #if UNITY_5_6_OR_NEWER
+                return _ambientOnly && targetCamera.allowHDR &&
+                    occlusionSource == OcclusionSource.GBuffer;
+            #else
                 return _ambientOnly && targetCamera.hdr &&
                     occlusionSource == OcclusionSource.GBuffer;
+            #endif
             }
             set { _ambientOnly = value; }
         }
@@ -133,16 +138,6 @@ namespace Kino
         #endregion
 
         #region Private Properties
-
-        // Texture format used for storing AO
-        RenderTextureFormat aoTextureFormat {
-            get {
-                if (SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.R8))
-                    return RenderTextureFormat.R8;
-                else
-                    return RenderTextureFormat.Default;
-            }
-        }
 
         // AO shader material
         Material aoMaterial {
@@ -178,7 +173,11 @@ namespace Kino
         }
 
         // Property observer
-        PropertyObserver propertyObserver { get; set; }
+        PropertyObserver propertyObserver {
+            get { return _propertyObserver; }
+        }
+
+        PropertyObserver _propertyObserver = new PropertyObserver();
 
         // Check if the G-buffer is available
         bool IsGBufferAvailable {
@@ -204,13 +203,13 @@ namespace Kino
             var tw = targetCamera.pixelWidth;
             var th = targetCamera.pixelHeight;
             var ts = downsampling ? 2 : 1;
-            var format = aoTextureFormat;
+            var format = RenderTextureFormat.ARGB32;
             var rwMode = RenderTextureReadWrite.Linear;
             var filter = FilterMode.Bilinear;
 
             // AO buffer
             var m = aoMaterial;
-            var rtMask = Shader.PropertyToID("_ObscuranceTexture");
+            var rtMask = Shader.PropertyToID("_OcclusionTexture1");
             cb.GetTemporaryRT(
                 rtMask, tw / ts, th / ts, 0, filter, format, rwMode
             );
@@ -219,28 +218,17 @@ namespace Kino
             cb.Blit(null, rtMask, m, 2);
 
             // Blur buffer
-            var rtBlur = Shader.PropertyToID("_ObscuranceBlurTexture");
+            var rtBlur = Shader.PropertyToID("_OcclusionTexture2");
 
-            // 1st blur iteration (large kernel)
+            // Separable blur (horizontal pass)
             cb.GetTemporaryRT(rtBlur, tw, th, 0, filter, format, rwMode);
-            cb.SetGlobalVector("_BlurVector", Vector2.right * 2);
             cb.Blit(rtMask, rtBlur, m, 4);
             cb.ReleaseTemporaryRT(rtMask);
 
+            // Separable blur (vertical pass)
+            rtMask = Shader.PropertyToID("_OcclusionTexture");
             cb.GetTemporaryRT(rtMask, tw, th, 0, filter, format, rwMode);
-            cb.SetGlobalVector("_BlurVector", Vector2.up * 2 * ts);
-            cb.Blit(rtBlur, rtMask, m, 4);
-            cb.ReleaseTemporaryRT(rtBlur);
-
-            // 2nd blur iteration (small kernel)
-            cb.GetTemporaryRT(rtBlur, tw, th, 0, filter, format, rwMode);
-            cb.SetGlobalVector("_BlurVector", Vector2.right * ts);
-            cb.Blit(rtMask, rtBlur, m, 6);
-            cb.ReleaseTemporaryRT(rtMask);
-
-            cb.GetTemporaryRT(rtMask, tw, th, 0, filter, format, rwMode);
-            cb.SetGlobalVector("_BlurVector", Vector2.up * ts);
-            cb.Blit(rtBlur, rtMask, m, 6);
+            cb.Blit(rtBlur, rtMask, m, 5);
             cb.ReleaseTemporaryRT(rtBlur);
 
             // Combine AO to the G-buffer.
@@ -249,7 +237,7 @@ namespace Kino
                 BuiltinRenderTextureType.CameraTarget   // Ambient
             };
             cb.SetRenderTarget(mrt, BuiltinRenderTextureType.CameraTarget);
-            cb.DrawMesh(_quadMesh, Matrix4x4.identity, m, 0, 8);
+            cb.DrawMesh(_quadMesh, Matrix4x4.identity, m, 0, 7);
 
             cb.ReleaseTemporaryRT(rtMask);
         }
@@ -260,7 +248,7 @@ namespace Kino
             var tw = source.width;
             var th = source.height;
             var ts = downsampling ? 2 : 1;
-            var format = aoTextureFormat;
+            var format = RenderTextureFormat.ARGB32;
             var rwMode = RenderTextureReadWrite.Linear;
             var useGBuffer = occlusionSource == OcclusionSource.GBuffer;
 
@@ -273,33 +261,24 @@ namespace Kino
             // AO estimation
             Graphics.Blit(source, rtMask, m, (int)occlusionSource);
 
-            // 1st blur iteration (large kernel)
+            // Separable blur (horizontal pass)
             var rtBlur = RenderTexture.GetTemporary(tw, th, 0, format, rwMode);
-            m.SetVector("_BlurVector", Vector2.right * 2);
             Graphics.Blit(rtMask, rtBlur, m, useGBuffer ? 4 : 3);
             RenderTexture.ReleaseTemporary(rtMask);
 
+            // Separable blur (vertical pass)
             rtMask = RenderTexture.GetTemporary(tw, th, 0, format, rwMode);
-            m.SetVector("_BlurVector", Vector2.up * 2 * ts);
-            Graphics.Blit(rtBlur, rtMask, m, useGBuffer ? 4 : 3);
+            Graphics.Blit(rtBlur, rtMask, m, 5);
             RenderTexture.ReleaseTemporary(rtBlur);
 
-            // 2nd blur iteration (small kernel)
-            rtBlur = RenderTexture.GetTemporary(tw, th, 0, format, rwMode);
-            m.SetVector("_BlurVector", Vector2.right * ts);
-            Graphics.Blit(rtMask, rtBlur, m, useGBuffer ? 6 : 5);
+            // Composition
+            m.SetTexture("_OcclusionTexture", rtMask);
+            Graphics.Blit(source, destination, m, 6);
             RenderTexture.ReleaseTemporary(rtMask);
 
-            rtMask = RenderTexture.GetTemporary(tw, th, 0, format, rwMode);
-            m.SetVector("_BlurVector", Vector2.up * ts);
-            Graphics.Blit(rtBlur, rtMask, m, useGBuffer ? 6 : 5);
-            RenderTexture.ReleaseTemporary(rtBlur);
-
-            // Combine AO with the source.
-            m.SetTexture("_ObscuranceTexture", rtMask);
-            Graphics.Blit(source, destination, m, 7);
-
-            RenderTexture.ReleaseTemporary(rtMask);
+            // Explicitly detach the temporary texture.
+            // (This is needed to avoid conflict with CommandBuffer)
+            m.SetTexture("_OcclusionTexture", null);
         }
 
         // Update the common material properties.
@@ -308,7 +287,7 @@ namespace Kino
             var m = aoMaterial;
             m.SetFloat("_Intensity", intensity);
             m.SetFloat("_Radius", radius);
-            m.SetFloat("_TargetScale", downsampling ? 0.5f : 1);
+            m.SetFloat("_Downsample", downsampling ? 0.5f : 1);
             m.SetInt("_SampleCount", sampleCountValue);
         }
 
@@ -333,17 +312,21 @@ namespace Kino
 
         void OnDisable()
         {
-            // Destroy all the temporary resources.
-            if (_aoMaterial != null) DestroyImmediate(_aoMaterial);
-            _aoMaterial = null;
-
+            // Remove the command buffer from the camera.
             if (_aoCommands != null) targetCamera.RemoveCommandBuffer(
                 CameraEvent.BeforeReflections, _aoCommands
             );
-            _aoCommands = null;
         }
 
-        void Update()
+        void OnDestroy()
+        {
+            if (Application.isPlaying)
+                Destroy(_aoMaterial);
+            else
+                DestroyImmediate(_aoMaterial);
+        }
+
+        void OnPreRender()
         {
             if (propertyObserver.CheckNeedsReset(this, targetCamera))
             {

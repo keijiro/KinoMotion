@@ -1,5 +1,5 @@
 //
-// Kino/Obscurance - SSAO (screen-space ambient obscurance) effect for Unity
+// Kino/Obscurance - Screen space ambient obscurance image effect
 //
 // Copyright (C) 2016 Keijiro Takahashi
 //
@@ -28,7 +28,7 @@ namespace Kino
     public partial class Obscurance : MonoBehaviour
     {
         // Observer class that detects changes on properties
-        struct PropertyObserver
+        class PropertyObserver
         {
             // Obscurance properties
             bool _downsampling;
