@@ -1,48 +1,33 @@
-Kino/Motion
-===========
+KinoMotion
+==========
 
-*Motion* is a post-processing effect that simulates motion blur caused by
+**Motion** is a post-processing effect that simulates motion blur caused by
 object/camera movement.
 
-![Gif][Gif1]
-![Gif][Gif2]
-
-*Motion* is part of the *Kino* effect suite. See the [GitHub repositories]
-[Kino] for other effects included in the suite.
+![gif](https://i.imgur.com/UkJvWnc.gif)
+![gif](https://i.imgur.com/tJioLuY.gif)
 
 System Requirements
 -------------------
 
-- Unity 5.4 or later versions
+- Unity 2017.1 or later
+- [Motion vector texture] support
 
-*Motion* requires [motion vectors][MotionVectors] that is newly introduced in
-Unity 5.4. Motion vector rendering is only supported on the platforms that has
-RGHalf texture format support. This requirement must be met in most of the
-desktop/console platforms, but rarely supported in the mobile platforms.
+Rendering motion vector texture requires the RGHalf texture format. It's
+supported on most of the desktop/console platform, but rarely supported on the
+mobile devices.
+
+[Motion vector texture]: http://docs.unity3d.com/540/Documentation/ScriptReference/DepthTextureMode.MotionVectors.html
+
+Installation
+------------
+
+Download one of the unitypackage files from the [Releases] page and import it
+to the project.
+
+[Releases]: https://github.com/keijiro/KinoMotion/releases
 
 License
 -------
 
-Copyright (C) 2016 Keijiro Takahashi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-[Gif1]: https://i.imgur.com/UkJvWnc.gif
-[Gif2]: https://i.imgur.com/tJioLuY.gif
-[Kino]: https://github.com/search?q=kino+user%3Akeijiro&type=Repositories
-[MotionVectors]: http://docs.unity3d.com/540/Documentation/ScriptReference/DepthTextureMode.MotionVectors.html
+[MIT](LICENSE.txt)
