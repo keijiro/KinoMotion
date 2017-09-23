@@ -73,7 +73,7 @@ namespace Klak
             else if (_frameCount > 0)
             {
                 var name = "Capture/frame" + _frameCount.ToString("0000") + ".png";
-                Application.CaptureScreenshot(name, _superSampling);
+                ScreenCapture.CaptureScreenshot(name, _superSampling);
             }
             _frameCount++;
         }

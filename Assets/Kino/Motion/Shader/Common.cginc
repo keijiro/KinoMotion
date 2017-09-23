@@ -99,7 +99,7 @@ struct v2f_multitex
 v2f_multitex vert_Multitex(appdata_full v)
 {
     v2f_multitex o;
-    o.pos = mul(UNITY_MATRIX_MVP, v.vertex);
+    o.pos = UnityObjectToClipPos(v.vertex);
     o.uv0 = v.texcoord.xy;
     o.uv1 = v.texcoord.xy;
 #if UNITY_UV_STARTS_AT_TOP
